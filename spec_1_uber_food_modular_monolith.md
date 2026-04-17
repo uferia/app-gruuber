@@ -48,31 +48,52 @@ Pattern:
 
 ---
 
+### Authentication & Authorization
+
+- **Access model**: OAuth2-style bearer tokens with short-lived JWT access tokens + long-lived refresh tokens.
+- **Roles (RBAC)**:
+  - `rider`: request rides, place food orders, view own status.
+  - `driver`: accept rides/orders, update location, update trip/delivery status.
+  - `restaurant`: accept/prepare food orders and update readiness.
+- **JWT claims** include `sub` (user id), `role`, `region_id`, and `exp`.
+- **Token flow through YARP**:
+  1. Client authenticates against Auth module and receives access + refresh token.
+  2. Client calls `/v1/*` APIs with `Authorization: Bearer <access_token>`.
+  3. YARP validates JWT signature/expiry (via Auth-issued signing keys/JWKS, cached for 1 hour with ±10% jitter; refresh on `kid` miss/rotation) and forwards role/subject claims to downstream handlers.
+  4. Expired access tokens are renewed via `/v1/auth/refresh` using refresh token rotation.
+- **Refresh strategy**:
+  - Access token TTL: 15 minutes.
+  - Refresh token TTL: 30 days, stored hashed and revocable.
+  - On refresh: rotate refresh token, invalidate previous token, and issue new access token.
+
+---
+
 ### Driver Matching Algorithm (Scored)
 
-Instead of nearest-only, we compute a **matching score**:
+Instead of nearest-only, we compute a **matching score** and select the **highest** score:
 
-Score = (w1 * distance) + (w2 * driver_rating) + (w3 * availability_score)
+Score = (w1 * proximity_score) + (w2 * driver_rating) + (w3 * availability_score)
 
 Where:
-- distance → from Redis GEO
+- proximity_score = `1 / (1 + distance_km)` from Redis GEO distance
 - driver_rating → from DB/cache
 - availability_score → based on idle time
+- `w1`, `w2`, and `w3` are positive normalized weights (`w1 + w2 + w3 = 1`)
 
 Flow:
 1. Fetch nearby drivers (Redis GEO, radius 3–5km)
 2. Enrich with rating + availability
 3. Compute score
-4. Select lowest score
+4. Select highest score
 
 Pseudo:
 ```csharp
 var candidates = geoDrivers.Select(d => new {
     d.Id,
-    Score = w1 * d.Distance + w2 * d.Rating + w3 * d.Availability
+    Score = w1 * (1.0 / (1.0 + d.DistanceKm)) + w2 * d.Rating + w3 * d.Availability
 });
 
-var best = candidates.OrderBy(x => x.Score).First();
+var best = candidates.OrderByDescending(x => x.Score).First();
 ```
 
 ---
@@ -94,11 +115,14 @@ Responsibilities:
 Use **token bucket (Redis-backed)**:
 
 Keys:
-- rate_limit:user:{userId}
+- rate_limit:rider:{userId}
+- rate_limit:driver:{userId}
+- rate_limit:restaurant:{userId}
 
 Config:
-- 100 requests / minute (user)
-- 20 requests / second (driver location updates)
+- Rider: 100 requests / minute
+- Driver: 300 requests / minute + 20 requests / second for location updates
+- Restaurant: 200 requests / minute
 
 Redis Lua script for atomicity.
 
@@ -140,6 +164,9 @@ Kafka topics:
 - ride-events-{region}
 - order-events-{region}
 - payment-events-{region}
+- ride-events-dlq-{region}
+- order-events-dlq-{region}
+- payment-events-dlq-{region}
 
 Redis:
 - driver_locations:{region}
@@ -151,6 +178,7 @@ Redis:
 - Driver sends location every 2–3s
 - Stored in Redis GEO
 - SignalR pushes updates to clients
+- Redis is also used as the **SignalR backplane** for multi-instance fan-out
 
 ---
 
@@ -177,6 +205,36 @@ Kafka -> Order : update paid
 - Outbox Pattern (DB → Kafka)
 - Idempotency keys
 - Retry with backoff
+- Kafka DLQ per region for permanently failing messages after max retries
+
+---
+
+### State Machines
+
+#### Ride state machine
+
+`requested → matched → en_route → arrived → completed → cancelled`
+
+#### Food order state machine
+
+`placed → accepted → preparing → ready → picked_up → delivered`
+
+---
+
+### Error Handling & Failure Modes
+
+- **Zero candidates in matching**: ride remains `requested`; return `202 Accepted` with `pending_match`, retry matching with expanding radius/backoff, and notify client on assignment via SignalR (or client polling `GET /v1/rides/{id}` fallback).
+- **Kafka consumer failures**: retry with exponential backoff + jitter; persist retry count; route to region DLQ after 5 failed retries.
+- **Stale Redis GEO data**: require heartbeat TTL (10 seconds) for online drivers; on expiry + 5-second grace window, atomically mark driver as `offline` and remove from region geo index.
+- **Payment callback timeout**: move payment to `pending_confirmation`, poll provider/webhook retry every 30 seconds for bounded period (e.g., 15 min), then mark `failed_timeout` and emit compensating event (`payment_timeout`) containing `entity_id`, `reason`, `refund_required`, and `notify_user`.
+
+---
+
+### Observability
+
+- **OpenTelemetry** for distributed tracing across gateway, handlers, Kafka producers/consumers, Redis, and PostgreSQL.
+- **Structured logging** (JSON) with correlation IDs (`trace_id`, `ride_id`, `order_id`, `region_id`).
+- **Health checks** for PostgreSQL, Redis, Kafka, and SignalR endpoint readiness/liveness.
 
 ---
 
@@ -199,7 +257,37 @@ CREATE TABLE rides (
   driver_id UUID,
   status TEXT,
   region_id INT,
+  version BIGINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP
+);
+
+CREATE TABLE restaurants (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  region_id INT NOT NULL,
+  created_at TIMESTAMP
+);
+
+CREATE TABLE orders (
+  id UUID PRIMARY KEY,
+  rider_id UUID NOT NULL,
+  restaurant_id UUID NOT NULL REFERENCES restaurants(id),
+  driver_id UUID,
+  status TEXT NOT NULL,
+  total_amount NUMERIC NOT NULL,
+  region_id INT NOT NULL,
+  version BIGINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP
+);
+
+CREATE TABLE order_items (
+  id UUID PRIMARY KEY,
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  item_name TEXT NOT NULL,
+  quantity INT NOT NULL,
+  unit_price NUMERIC NOT NULL,
+  subtotal NUMERIC NOT NULL
 );
 
 CREATE TABLE payments (
@@ -211,6 +299,21 @@ CREATE TABLE payments (
   region_id INT
 );
 ```
+
+Optimistic concurrency pattern (prevents double-acceptance race):
+
+```sql
+UPDATE rides
+SET driver_id = :driverId,
+    status = 'matched',
+    version = version + 1
+WHERE id = :rideId
+  AND status = 'requested'
+  AND version = :expectedVersion;
+```
+
+Apply the same `version`-checked update pattern on `orders` transitions.
+If affected rows = 0, treat as concurrency conflict (`409 Conflict`), return only minimal metadata (`entity_id`, `current_version`), and require authorized `GET` to fetch full latest state.
 
 ---
 
@@ -263,10 +366,27 @@ Background worker publishes to Kafka.
 
 ### APIs
 
-- POST /rides/request
-- POST /orders/create
-- POST /payments/initiate
-- POST /drivers/location
+- POST /v1/rides/request
+- POST /v1/orders/create
+- POST /v1/payments/initiate
+- POST /v1/drivers/location
+- POST /v1/auth/refresh
+
+---
+
+### API Versioning
+
+- Use URL-based versioning (`/v1/...`) at the gateway and module endpoints.
+- Non-breaking additions stay in `v1`; breaking changes introduce `/v2`.
+- Maintain at least one overlapping supported version during migrations.
+
+---
+
+### Schema Versioning & Data Migration
+
+- Manage schema via versioned migrations (EF Core migrations or Flyway).
+- Each migration is forward-only, idempotent in CI/CD, and tracked in schema history.
+- For future service split, keep shared contracts backward-compatible and run expand/contract migrations.
 
 ---
 
@@ -288,7 +408,11 @@ Background worker publishes to Kafka.
 5. Ride + order flows
 6. Payment integration
 7. SignalR real-time
-8. Load test (<10k users)
+8. Load test targets:
+   - 10,000 concurrent users
+   - 120 ride requests/sec sustained
+   - 80 food orders/sec sustained
+   - API latency (all synchronous app-owned request/response handling, including `/payments/initiate` validation + payment record persistence + outbox/event write before async handoff; external provider callback delivery and any async webhook completion are excluded): p50 < 150ms, p95 < 400ms, p99 < 800ms
 
 ---
 
