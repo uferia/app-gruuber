@@ -59,7 +59,7 @@ Pattern:
 - **Token flow through YARP**:
   1. Client authenticates against Auth module and receives access + refresh token.
   2. Client calls `/v1/*` APIs with `Authorization: Bearer <access_token>`.
-  3. YARP validates JWT signature/expiry and forwards role/subject claims to downstream handlers.
+  3. YARP validates JWT signature/expiry (via Auth-issued signing keys/JWKS, cached for 1 hour with ±10% jitter; refresh on `kid` miss/rotation) and forwards role/subject claims to downstream handlers.
   4. Expired access tokens are renewed via `/v1/auth/refresh` using refresh token rotation.
 - **Refresh strategy**:
   - Access token TTL: 15 minutes.
@@ -78,6 +78,7 @@ Where:
 - proximity_score = `1 / (1 + distance_km)` from Redis GEO distance
 - driver_rating → from DB/cache
 - availability_score → based on idle time
+- `w1`, `w2`, and `w3` are positive normalized weights (`w1 + w2 + w3 = 1`)
 
 Flow:
 1. Fetch nearby drivers (Redis GEO, radius 3–5km)
@@ -222,10 +223,10 @@ Kafka -> Order : update paid
 
 ### Error Handling & Failure Modes
 
-- **Zero candidates in matching**: ride remains `requested`; return `202 Accepted` with `pending_match` and retry matching with expanding radius/backoff.
-- **Kafka consumer failures**: retry with exponential backoff + jitter; persist retry count; route to region DLQ after retry threshold.
-- **Stale Redis GEO data**: require heartbeat TTL for online drivers; ignore drivers with expired heartbeat and trigger availability downgrade.
-- **Payment callback timeout**: move payment to `pending_confirmation`, poll provider/webhook retry for bounded period (e.g., 15 min), then mark `failed_timeout` and emit compensating event.
+- **Zero candidates in matching**: ride remains `requested`; return `202 Accepted` with `pending_match`, retry matching with expanding radius/backoff, and notify client on assignment via SignalR (or client polling `GET /v1/rides/{id}` fallback).
+- **Kafka consumer failures**: retry with exponential backoff + jitter; persist retry count; route to region DLQ after 5 failed retries.
+- **Stale Redis GEO data**: require heartbeat TTL (10 seconds) for online drivers; on expiry + 5-second grace window, atomically mark driver as `offline` and remove from region geo index.
+- **Payment callback timeout**: move payment to `pending_confirmation`, poll provider/webhook retry every 30 seconds for bounded period (e.g., 15 min), then mark `failed_timeout` and emit compensating event (`payment_timeout`) containing `entity_id`, `reason`, `refund_required`, and `notify_user`.
 
 ---
 
@@ -256,7 +257,7 @@ CREATE TABLE rides (
   driver_id UUID,
   status TEXT,
   region_id INT,
-  version INT NOT NULL DEFAULT 1,
+  version BIGINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP
 );
 
@@ -276,7 +277,7 @@ CREATE TABLE orders (
   status TEXT NOT NULL,
   total_amount NUMERIC NOT NULL,
   region_id INT NOT NULL,
-  version INT NOT NULL DEFAULT 1,
+  version BIGINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP
 );
 
@@ -312,6 +313,7 @@ WHERE id = :rideId
 ```
 
 Apply the same `version`-checked update pattern on `orders` transitions.
+If affected rows = 0, treat as concurrency conflict (`409 Conflict`), return only minimal metadata (`entity_id`, `current_version`), and require authorized `GET` to fetch full latest state.
 
 ---
 
@@ -410,7 +412,7 @@ Background worker publishes to Kafka.
    - 10,000 concurrent users
    - 120 ride requests/sec sustained
    - 80 food orders/sec sustained
-   - API latency: p50 < 150ms, p95 < 400ms, p99 < 800ms (excluding external payment callback latency)
+   - API latency (all synchronous app-owned request/response handling, including `/payments/initiate` validation + payment record persistence + outbox/event write before async handoff; external provider callback delivery and any async webhook completion are excluded): p50 < 150ms, p95 < 400ms, p99 < 800ms
 
 ---
 
