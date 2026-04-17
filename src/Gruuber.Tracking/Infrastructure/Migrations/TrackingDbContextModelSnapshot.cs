@@ -59,7 +59,10 @@ namespace Gruuber.Tracking.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("ride_views", (string)null);
+                    b.ToTable("ride_views", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
                 });
 #pragma warning restore 612, 618
         }

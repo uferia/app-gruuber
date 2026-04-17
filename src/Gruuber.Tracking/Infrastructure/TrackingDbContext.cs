@@ -12,7 +12,7 @@ public class TrackingDbContext : DbContext
     {
         modelBuilder.Entity<RideViewEntry>(e =>
         {
-            e.ToTable("ride_views");
+            e.ToTable("ride_views", t => t.ExcludeFromMigrations());
             e.HasKey(x => x.RideId);
             e.HasIndex(x => x.DriverId);
             e.HasIndex(x => x.Status);

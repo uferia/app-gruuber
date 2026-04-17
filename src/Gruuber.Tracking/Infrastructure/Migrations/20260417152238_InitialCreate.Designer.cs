@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gruuber.Tracking.Infrastructure.Migrations
 {
     [DbContext(typeof(TrackingDbContext))]
-    [Migration("20260417150048_InitialCreate")]
+    [Migration("20260417152238_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -62,7 +62,10 @@ namespace Gruuber.Tracking.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("ride_views", (string)null);
+                    b.ToTable("ride_views", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
                 });
 #pragma warning restore 612, 618
         }
