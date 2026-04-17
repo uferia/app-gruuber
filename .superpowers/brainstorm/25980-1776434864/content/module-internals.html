@@ -1,0 +1,58 @@
+<h2>How should each module be organized internally?</h2>
+<p class="subtitle">This is the folder/namespace structure inside each project like <code>Gruuber.Rides</code>.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Clean Architecture Layers <span style="font-size:0.75em;color:#f59e0b;font-weight:600;">⭐ Recommended</span></h3>
+      <p>Classic layered split inside each module. Enforces that Domain has zero dependencies.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Gruuber.Rides/</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:0.85em;line-height:1.8">
+          📁 Domain/ &nbsp;<span style="color:#6b7280">— Ride entity, IRideRepository, domain events</span><br>
+          📁 Application/ &nbsp;<span style="color:#6b7280">— Commands/, Queries/, IOutboxPublisher usage</span><br>
+          📁 Infrastructure/ &nbsp;<span style="color:#6b7280">— EF Core, Kafka consumer, Redis</span><br>
+          📁 Contracts/ &nbsp;<span style="color:#6b7280">— DTOs, request/response models</span><br>
+          📄 RidesModule.cs &nbsp;<span style="color:#6b7280">— IServiceCollection extension</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Vertical Slice (Feature Folders)</h3>
+      <p>Each use-case is a self-contained slice. No shared layers — a slice owns its own handler, validator, and DB access.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Gruuber.Rides/</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:0.85em;line-height:1.8">
+          📁 RequestRide/ &nbsp;<span style="color:#6b7280">— Command, Handler, Validator, Response</span><br>
+          📁 MatchDriver/ &nbsp;<span style="color:#6b7280">— Command, Handler, Scoring logic</span><br>
+          📁 GetRideStatus/ &nbsp;<span style="color:#6b7280">— Query, Handler, RideView projection</span><br>
+          📁 Shared/ &nbsp;<span style="color:#6b7280">— Ride entity, IRideRepository</span><br>
+          📄 RidesModule.cs
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Flat CQRS Split</h3>
+      <p>Simple top-level Commands/Queries split. No strict layering — good for smaller modules like Payments or Tracking.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Gruuber.Rides/</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:0.85em;line-height:1.8">
+          📁 Commands/ &nbsp;<span style="color:#6b7280">— RequestRideCommand, MatchDriverCommand</span><br>
+          📁 Queries/ &nbsp;<span style="color:#6b7280">— GetRideStatusQuery</span><br>
+          📁 Domain/ &nbsp;<span style="color:#6b7280">— Ride, RideStatus, IRideRepository</span><br>
+          📁 Infrastructure/ &nbsp;<span style="color:#6b7280">— EF Core, Kafka, Redis</span><br>
+          📄 RidesModule.cs
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

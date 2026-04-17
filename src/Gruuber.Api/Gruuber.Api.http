@@ -1,0 +1,6 @@
+@Gruuber.Api_HostAddress = http://localhost:5122
+
+GET {{Gruuber.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

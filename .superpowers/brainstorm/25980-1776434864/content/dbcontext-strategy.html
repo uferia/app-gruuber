@@ -1,0 +1,44 @@
+<h2>How should DbContext be scoped?</h2>
+<p class="subtitle">This affects how modules share or isolate their database access — and how easy schema changes are to manage.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>One DbContext per Module <span style="font-size:0.75em;color:#f59e0b;font-weight:600;">⭐ Recommended</span></h3>
+      <p>Each module owns its own <code>DbContext</code> and its own EF Core migrations. Modules never reference each other's DbContext.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Contexts</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:0.85em;line-height:1.8">
+          Gruuber.Rides → <strong>RidesDbContext</strong> (rides, ride_views, outbox)<br>
+          Gruuber.Orders → <strong>OrdersDbContext</strong> (orders, order_items, outbox)<br>
+          Gruuber.Payments → <strong>PaymentsDbContext</strong> (payments, outbox)<br>
+          Gruuber.Auth → <strong>AuthDbContext</strong> (users, refresh_tokens)
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:0.5rem">
+        <div class="pros"><h4>Pros</h4><ul><li>True module isolation</li><li>Migrations per module — safe deploys</li><li>Microservices split is trivial</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Cross-module joins require Kafka or API calls</li><li>More migration projects to manage</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Single Shared DbContext</h3>
+      <p>One <code>AppDbContext</code> in <code>Gruuber.Infrastructure</code> owns all tables and migrations.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Gruuber.Infrastructure</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:0.85em;line-height:1.8">
+          AppDbContext → rides, orders, payments,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;order_items, outbox, users...
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:0.5rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Simple — one migration history</li><li>Cross-entity queries are easy</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Breaks module isolation</li><li>All modules depend on Infrastructure</li><li>Hard to split later</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

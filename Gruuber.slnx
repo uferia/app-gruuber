@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Gruuber.Api/Gruuber.Api.csproj" />
+    <Project Path="src/Gruuber.Auth/Gruuber.Auth.csproj" />
+    <Project Path="src/Gruuber.Orders/Gruuber.Orders.csproj" />
+    <Project Path="src/Gruuber.Payments/Gruuber.Payments.csproj" />
+    <Project Path="src/Gruuber.Rides/Gruuber.Rides.csproj" />
+    <Project Path="src/Gruuber.SharedKernel/Gruuber.SharedKernel.csproj" />
+    <Project Path="src/Gruuber.Tracking/Gruuber.Tracking.csproj" />
+  </Folder>
+</Solution>

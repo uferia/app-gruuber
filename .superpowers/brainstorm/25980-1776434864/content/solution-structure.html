@@ -1,0 +1,40 @@
+<h2>How should the solution be structured?</h2>
+<p class="subtitle">This affects how modules are isolated, how dependencies are enforced, and how easy it is to split into microservices later.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Single Project + Module Folders <span style="font-size:0.75em;color:#f59e0b;font-weight:600;">⭐ Recommended</span></h3>
+      <p>One <code>Gruuber.Api</code> project. Each module is a folder (<code>Modules/Ride/</code>, <code>Modules/Order/</code>, etc.) with its own Commands, Queries, and Domain sub-folders. Shared kernel is a folder too.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Simple to start, zero friction</li><li>EF Core migrations straightforward</li><li>Easy DI wiring</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Module boundaries enforced by convention only</li><li>Harder to split later without refactor</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Multi-Project Solution</h3>
+      <p>Separate class library projects per module: <code>Gruuber.Rides</code>, <code>Gruuber.Orders</code>, <code>Gruuber.Payments</code>, etc. A thin <code>Gruuber.Api</code> host wires everything together. Shared kernel is <code>Gruuber.SharedKernel</code>.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Compiler-enforced boundaries</li><li>Each module can be extracted to a microservice with minimal refactor</li><li>Clear dependency graph</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More overhead up front (project refs, migrations setup)</li><li>More files and solutions to manage</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid — Shared Kernel Library + Flat Modules</h3>
+      <p><code>Gruuber.SharedKernel</code> is a separate project (interfaces, base classes, domain primitives). All modules live as folders inside <code>Gruuber.Api</code>. Best of both: enforced kernel contract, simpler module setup.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Kernel contract is explicit and versioned</li><li>Modules stay simple</li><li>Migration path to multi-project is incremental</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Module boundaries still convention-only</li><li>Slightly more setup than option A</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
