@@ -12,10 +12,13 @@ public class User : EntityBase
     private User() { }
 
     public static User Create(string email, string passwordHash, string role, int regionId)
+        => Create(Guid.NewGuid(), email, passwordHash, role, regionId);
+
+    public static User Create(Guid id, string email, string passwordHash, string role, int regionId)
     {
         return new User
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Email = email,
             PasswordHash = passwordHash,
             Role = role,
