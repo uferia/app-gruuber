@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Gruuber.Api.Hubs;
 
+[Authorize]
 public class LocationHub : Hub
 {
     public async Task JoinRideGroup(string rideId)
