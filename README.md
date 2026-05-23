@@ -63,8 +63,10 @@ Pattern:
   4. Expired access tokens are renewed via `/v1/auth/refresh` using refresh token rotation.
 - **Refresh strategy**:
   - Access token TTL: 15 minutes.
-  - Refresh token TTL: 30 days, stored hashed and revocable.
+  - Refresh token TTL: configurable via `Jwt:RefreshTokenTtlDays` (default 30 days), stored hashed and revocable.
   - On refresh: rotate refresh token, invalidate previous token, and issue new access token.
+- **Identity binding**: all controllers derive `UserId`, `Role`, and `RegionId` from JWT claims via `ICurrentUserContext` — caller-supplied identity fields in request bodies are ignored.
+- **Startup validation**: `Jwt:Secret` must be ≥ 32 characters; the application will not start with a weak secret.
 
 ---
 
@@ -75,26 +77,16 @@ Instead of nearest-only, we compute a **matching score** and select the **highes
 Score = (w1 * proximity_score) + (w2 * driver_rating) + (w3 * availability_score)
 
 Where:
-- proximity_score = `1 / (1 + distance_km)` from Redis GEO distance
+- proximity_score = `1 / (1 + distance_km)` from Redis GEO distance, using the **actual ride pickup coordinates**
 - driver_rating → from DB/cache
 - availability_score → based on idle time
 - `w1`, `w2`, and `w3` are positive normalized weights (`w1 + w2 + w3 = 1`)
 
 Flow:
-1. Fetch nearby drivers (Redis GEO, radius 3–5km)
+1. Fetch nearby drivers (Redis GEO, radius 3–5km, queried from actual pickup lat/lng)
 2. Enrich with rating + availability
 3. Compute score
 4. Select highest score
-
-Pseudo:
-```csharp
-var candidates = geoDrivers.Select(d => new {
-    d.Id,
-    Score = w1 * (1.0 / (1.0 + d.DistanceKm)) + w2 * d.Rating + w3 * d.Availability
-});
-
-var best = candidates.OrderByDescending(x => x.Score).First();
-```
 
 ---
 
@@ -112,19 +104,20 @@ Responsibilities:
 
 ### Rate Limiting Strategy
 
-Use **token bucket (Redis-backed)**:
+Use **token bucket (Redis-backed)** implemented as `RedisRateLimiterMiddleware` with an atomic Lua script. Limits are configurable via the `RateLimiting` config section. The middleware **fails open** — a Redis outage does not block requests.
 
 Keys:
-- rate_limit:rider:{userId}
-- rate_limit:driver:{userId}
-- rate_limit:restaurant:{userId}
+- `rate_limit:rider:{userId}`
+- `rate_limit:driver:{userId}`
+- `rate_limit:restaurant:{userId}`
 
-Config:
+Config (defaults):
 - Rider: 100 requests / minute
 - Driver: 300 requests / minute + 20 requests / second for location updates
 - Restaurant: 200 requests / minute
+- Anonymous: 20 requests / minute
 
-Redis Lua script for atomicity.
+Returns `429 Too Many Requests` with a `Retry-After` header on limit breach.
 
 ---
 
@@ -176,9 +169,10 @@ Redis:
 ### Real-Time Tracking
 
 - Driver sends location every 2–3s
-- Stored in Redis GEO
+- Stored in Redis GEO; driver heartbeat TTL tracked in a **per-member sorted set** (`driver_ttl:{regionId}`) — stale drivers are pruned atomically via Lua on the next nearby-driver query without evicting the entire region
 - SignalR pushes updates to clients
 - Redis is also used as the **SignalR backplane** for multi-instance fan-out
+- `ride_views` is populated asynchronously by `RideViewConsumer` (Kafka consumer) — never written to directly from the application layer
 
 ---
 
@@ -202,10 +196,11 @@ Kafka -> Order : update paid
 
 ### Reliability Patterns
 
-- Outbox Pattern (DB → Kafka)
+- Outbox Pattern (DB → Kafka) — events are persisted atomically before publish
 - Idempotency keys
-- Retry with backoff
-- Kafka DLQ per region for permanently failing messages after max retries
+- Retry with exponential backoff + jitter (max 5 attempts)
+- Kafka DLQ per region (`{eventType}-dlq`) — failed outbox entries are **published** to the DLQ topic before being marked dead, ensuring a full replay path
+- Payment timeout: after 15 minutes with no provider callback, emits `payment_timeout` event with `refund_required=true` and `notify_user=true` on a region-scoped topic (`payment-events-timeout-{regionId}`)
 
 ---
 
@@ -232,9 +227,10 @@ Kafka -> Order : update paid
 
 ### Observability
 
-- **OpenTelemetry** for distributed tracing across gateway, handlers, Kafka producers/consumers, Redis, and PostgreSQL.
-- **Structured logging** (JSON) with correlation IDs (`trace_id`, `ride_id`, `order_id`, `region_id`).
-- **Health checks** for PostgreSQL, Redis, Kafka, and SignalR endpoint readiness/liveness.
+- **OpenTelemetry** for distributed tracing across gateway, handlers, Kafka producers/consumers, Redis, and PostgreSQL — configured with ASP.NET Core and HTTP client instrumentation.
+- **Structured logging** (Serilog JSON) with `TraceId` and `SpanId` automatically enriched on every log line via `Serilog.Enrichers.Span`, plus correlation IDs (`trace_id`, `ride_id`, `order_id`, `region_id`).
+- **Health checks** for PostgreSQL, Redis, and Kafka at `/health/readiness`; liveness at `/health`.
+- Swagger UI only exposed in `Development` environment.
 
 ---
 
@@ -256,6 +252,8 @@ CREATE TABLE rides (
   rider_id UUID,
   driver_id UUID,
   status TEXT,
+  pickup_lat DOUBLE PRECISION,
+  pickup_lng DOUBLE PRECISION,
   region_id INT,
   version BIGINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP
@@ -366,11 +364,31 @@ Background worker publishes to Kafka.
 
 ### APIs
 
-- POST /v1/rides/request
-- POST /v1/orders/create
-- POST /v1/payments/initiate
-- POST /v1/drivers/location
-- POST /v1/auth/refresh
+**Auth**
+- `POST /v1/auth/register` — create account (role: rider / driver / restaurant)
+- `POST /v1/auth/login`
+- `POST /v1/auth/refresh`
+
+**Rides**
+- `POST /v1/rides/request` — rider creates a ride request *(requires `rider` role)*
+- `POST /v1/rides/{id}/match` — driver triggers matching *(requires `driver` role)*
+- `PATCH /v1/rides/{id}/status` — lifecycle transitions (en_route → arrived → completed, or cancel)
+- `GET /v1/rides/{id}` — poll ride status
+
+**Orders**
+- `POST /v1/orders/create` — rider places a food order *(requires `rider` role)*
+- `PATCH /v1/orders/{id}/status` — transition order state
+- `GET /v1/orders/{id}` — get order with items
+- `GET /v1/orders/{id}/items` — get order items only
+
+**Payments**
+- `POST /v1/payments/initiate` — initiate payment *(requires `rider` role)*
+- `POST /v1/payments/{id}/confirm` — mark payment confirmed *(requires `driver` role)*
+- `POST /v1/payments/{id}/fail` — mark payment failed *(requires `driver` role)*
+- `GET /v1/payments/{id}` — poll payment status
+
+**Tracking**
+- `POST /v1/drivers/location` — driver heartbeat/location update *(requires `driver` role)*
 
 ---
 
