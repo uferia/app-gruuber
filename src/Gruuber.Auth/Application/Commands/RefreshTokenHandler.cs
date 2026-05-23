@@ -3,6 +3,7 @@ using Gruuber.Auth.Domain;
 using Gruuber.Auth.Infrastructure;
 using Gruuber.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Gruuber.Auth.Application.Commands;
 
@@ -10,11 +11,13 @@ public class RefreshTokenHandler
 {
     private readonly AuthDbContext _db;
     private readonly IJwtTokenService _jwt;
+    private readonly IConfiguration _configuration;
 
-    public RefreshTokenHandler(AuthDbContext db, IJwtTokenService jwt)
+    public RefreshTokenHandler(AuthDbContext db, IJwtTokenService jwt, IConfiguration configuration)
     {
         _db = db;
         _jwt = jwt;
+        _configuration = configuration;
     }
 
     public async Task<ApplicationResult<RefreshResponse>> HandleAsync(RefreshCommand command, CancellationToken cancellationToken = default)
@@ -36,7 +39,8 @@ public class RefreshTokenHandler
 
         var rawNewToken = _jwt.GenerateRefreshToken();
         var newHash = JwtTokenService.HashToken(rawNewToken);
-        var newRefresh = RefreshToken.Create(user.Id, newHash, user.RegionId);
+        var ttlDays = _configuration.GetValue<int>("Jwt:RefreshTokenTtlDays", 30);
+        var newRefresh = RefreshToken.Create(user.Id, newHash, user.RegionId, ttlDays);
 
         _db.RefreshTokens.Add(newRefresh);
         await _db.SaveChangesAsync(cancellationToken);

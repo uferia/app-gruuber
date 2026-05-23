@@ -66,12 +66,16 @@ public class PaymentTimeoutWorker : BackgroundService
 
             db.Set<PaymentOutboxEntry>().Add(new PaymentOutboxEntry
             {
-                EventType = $"payment-events-timeout",
+                EventType = $"payment-events-timeout-{payment.RegionId}",
                 Payload = JsonSerializer.Serialize(new
                 {
                     EventName = "payment_timeout",
                     PaymentId = payment.Id,
                     payment.RideId,
+                    entity_id = payment.Id,
+                    reason = "payment_timeout_15min",
+                    refund_required = true,
+                    notify_user = true,
                     OccurredAt = DateTime.UtcNow
                 })
             });

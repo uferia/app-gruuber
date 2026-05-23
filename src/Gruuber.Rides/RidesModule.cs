@@ -18,6 +18,7 @@ public static class RidesModule
         services.AddScoped<RequestRideHandler>();
         services.AddScoped<MatchDriverHandler>();
         services.AddScoped<GetRideStatusHandler>();
+        services.AddScoped<TransitionRideHandler>();
 
         return services;
     }

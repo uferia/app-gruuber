@@ -21,6 +21,12 @@ public static class AuthModule
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<LoginHandler>();
         services.AddScoped<RefreshTokenHandler>();
+        services.AddScoped<RegisterHandler>();
+
+        var jwtSecret = configuration["Jwt:Secret"]
+            ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+        if (jwtSecret.Length < 32)
+            throw new InvalidOperationException("Jwt:Secret must be at least 32 characters long for HMAC-SHA256 security.");
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -33,9 +39,7 @@ public static class AuthModule
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = configuration["Jwt:Issuer"],
                     ValidAudience = configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]
-                            ?? throw new InvalidOperationException("Jwt:Secret not configured")))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
                 };
             });
 

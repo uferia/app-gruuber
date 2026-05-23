@@ -18,6 +18,7 @@ public static class OrdersModule
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<TransitionOrderHandler>();
         services.AddScoped<GetOrderHandler>();
+        services.AddScoped<GetOrderItemsHandler>();
 
         return services;
     }

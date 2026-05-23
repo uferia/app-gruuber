@@ -81,8 +81,29 @@ public class OutboxWorker : BackgroundService
             else
             {
                 entry.RetryCount++;
-                entry.Status = entry.RetryCount >= MaxRetries ? "dlq" : "pending";
-                _logger.LogError("RideOutbox entry {Id} routed to DLQ after {Retries} retries", entry.Id, entry.RetryCount);
+                if (entry.RetryCount >= MaxRetries)
+                {
+                    entry.Status = "dlq";
+                    try
+                    {
+                        await _producer.PublishAsync(
+                            $"{entry.EventType}-dlq",
+                            entry.Id.ToString(),
+                            entry.Payload,
+                            cancellationToken);
+                        _logger.LogError("Entry {Id} published to DLQ topic {Topic} after {Retries} retries",
+                            entry.Id, $"{entry.EventType}-dlq", entry.RetryCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to publish entry {Id} to DLQ topic — entry marked dlq in DB only", entry.Id);
+                    }
+                }
+                else
+                {
+                    entry.Status = "pending";
+                    _logger.LogWarning("Entry {Id} retry {RetryCount}/{MaxRetries}", entry.Id, entry.RetryCount, MaxRetries);
+                }
             }
         }
 
@@ -113,8 +134,29 @@ public class OutboxWorker : BackgroundService
             else
             {
                 entry.RetryCount++;
-                entry.Status = entry.RetryCount >= MaxRetries ? "dlq" : "pending";
-                _logger.LogError("OrderOutbox entry {Id} routed to DLQ after {Retries} retries", entry.Id, entry.RetryCount);
+                if (entry.RetryCount >= MaxRetries)
+                {
+                    entry.Status = "dlq";
+                    try
+                    {
+                        await _producer.PublishAsync(
+                            $"{entry.EventType}-dlq",
+                            entry.Id.ToString(),
+                            entry.Payload,
+                            cancellationToken);
+                        _logger.LogError("Entry {Id} published to DLQ topic {Topic} after {Retries} retries",
+                            entry.Id, $"{entry.EventType}-dlq", entry.RetryCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to publish entry {Id} to DLQ topic — entry marked dlq in DB only", entry.Id);
+                    }
+                }
+                else
+                {
+                    entry.Status = "pending";
+                    _logger.LogWarning("Entry {Id} retry {RetryCount}/{MaxRetries}", entry.Id, entry.RetryCount, MaxRetries);
+                }
             }
         }
 
@@ -145,8 +187,29 @@ public class OutboxWorker : BackgroundService
             else
             {
                 entry.RetryCount++;
-                entry.Status = entry.RetryCount >= MaxRetries ? "dlq" : "pending";
-                _logger.LogError("PaymentOutbox entry {Id} routed to DLQ after {Retries} retries", entry.Id, entry.RetryCount);
+                if (entry.RetryCount >= MaxRetries)
+                {
+                    entry.Status = "dlq";
+                    try
+                    {
+                        await _producer.PublishAsync(
+                            $"{entry.EventType}-dlq",
+                            entry.Id.ToString(),
+                            entry.Payload,
+                            cancellationToken);
+                        _logger.LogError("Entry {Id} published to DLQ topic {Topic} after {Retries} retries",
+                            entry.Id, $"{entry.EventType}-dlq", entry.RetryCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to publish entry {Id} to DLQ topic — entry marked dlq in DB only", entry.Id);
+                    }
+                }
+                else
+                {
+                    entry.Status = "pending";
+                    _logger.LogWarning("Entry {Id} retry {RetryCount}/{MaxRetries}", entry.Id, entry.RetryCount, MaxRetries);
+                }
             }
         }
 

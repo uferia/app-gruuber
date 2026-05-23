@@ -8,10 +8,12 @@ public class Ride : EntityBase
     public Guid? DriverId { get; private set; }
     public RideStatus Status { get; private set; } = RideStatus.Requested;
     public string RideType { get; private set; } = string.Empty;
+    public double PickupLat { get; private set; }
+    public double PickupLng { get; private set; }
 
     private Ride() { }
 
-    public static Ride Create(Guid riderId, string rideType, int regionId)
+    public static Ride Create(Guid riderId, string rideType, int regionId, double pickupLat, double pickupLng)
     {
         return new Ride
         {
@@ -20,6 +22,8 @@ public class Ride : EntityBase
             RideType = rideType,
             Status = RideStatus.Requested,
             RegionId = regionId,
+            PickupLat = pickupLat,
+            PickupLng = pickupLng,
             CreatedAt = DateTime.UtcNow,
             Version = 1
         };

@@ -22,7 +22,7 @@ public class RequestRideHandler
         RequestRideCommand command,
         CancellationToken cancellationToken = default)
     {
-        var ride = Ride.Create(command.RiderId, command.RideType, command.RegionId);
+        var ride = Ride.Create(command.RiderId, command.RideType, command.RegionId, command.PickupLat, command.PickupLng);
 
         var outboxEntry = new RideOutboxEntry
         {

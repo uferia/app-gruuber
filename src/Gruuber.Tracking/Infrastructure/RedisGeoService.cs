@@ -16,23 +16,40 @@ public class RedisGeoService : IGeoService
     public async Task AddDriverLocationAsync(Guid driverId, double lat, double lng, int regionId, CancellationToken cancellationToken = default)
     {
         var db = _redis.GetDatabase();
-        var key = $"driver_locations:{regionId}";
+        var geoKey = $"driver_locations:{regionId}";
+        var ttlKey = $"driver_ttl:{regionId}";
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        await db.GeoAddAsync(key, new GeoEntry(lng, lat, driverId.ToString()));
+        var batch = db.CreateBatch();
+        var geoTask = batch.GeoAddAsync(geoKey, new GeoEntry(lng, lat, driverId.ToString()));
+        var ttlTask = batch.SortedSetAddAsync(ttlKey, driverId.ToString(), now + TtlSeconds);
+        batch.Execute();
 
-        // Set TTL on the key so stale drivers are evicted
-        await db.KeyExpireAsync(key, TimeSpan.FromSeconds(TtlSeconds));
+        await Task.WhenAll(geoTask, ttlTask);
     }
 
     public async Task<IEnumerable<NearbyDriver>> GetNearbyDriversAsync(double lat, double lng, int regionId, double radiusKm = 5.0, CancellationToken cancellationToken = default)
     {
         var db = _redis.GetDatabase();
-        var key = $"driver_locations:{regionId}";
+        var geoKey = $"driver_locations:{regionId}";
+        var ttlKey = $"driver_ttl:{regionId}";
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // Prune stale members atomically via Lua (uses ZREM on both sorted sets)
+        const string pruneScript = @"
+            local stale = redis.call('ZRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
+            for _, member in ipairs(stale) do
+                redis.call('ZREM', KEYS[2], member)
+                redis.call('ZREM', KEYS[1], member)
+            end
+            return #stale";
+
+        await db.ScriptEvaluateAsync(pruneScript,
+            new RedisKey[] { geoKey, ttlKey },
+            new RedisValue[] { now - 1 });
 
         var results = await db.GeoRadiusAsync(
-            key,
-            lng, lat,
-            radiusKm,
+            geoKey, lng, lat, radiusKm,
             GeoUnit.Kilometers,
             order: Order.Ascending,
             options: GeoRadiusOptions.WithDistance);
@@ -43,6 +60,14 @@ public class RedisGeoService : IGeoService
     public async Task RemoveDriverAsync(Guid driverId, int regionId, CancellationToken cancellationToken = default)
     {
         var db = _redis.GetDatabase();
-        await db.GeoRemoveAsync($"driver_locations:{regionId}", driverId.ToString());
+        var geoKey = $"driver_locations:{regionId}";
+        var ttlKey = $"driver_ttl:{regionId}";
+
+        var batch = db.CreateBatch();
+        var geoTask = batch.GeoRemoveAsync(geoKey, driverId.ToString());
+        var ttlTask = batch.SortedSetRemoveAsync(ttlKey, driverId.ToString());
+        batch.Execute();
+
+        await Task.WhenAll(geoTask, ttlTask);
     }
 }

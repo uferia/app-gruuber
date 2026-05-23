@@ -20,6 +20,8 @@ public static class ApplicationResultExtensions
         var error = new { result.ErrorCode, result.ErrorMessage };
         return result.StatusCode switch
         {
+            401 => controller.Unauthorized(error),
+            403 => controller.Forbid(),
             404 => controller.NotFound(error),
             409 => controller.Conflict(error),
             _ => controller.BadRequest(error)

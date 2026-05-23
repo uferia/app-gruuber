@@ -18,6 +18,7 @@ public static class PaymentsModule
         services.AddScoped<InitiatePaymentHandler>();
         services.AddScoped<ConfirmPaymentHandler>();
         services.AddScoped<FailPaymentHandler>();
+        services.AddScoped<GetPaymentHandler>();
         services.AddHostedService<PaymentTimeoutWorker>();
 
         return services;

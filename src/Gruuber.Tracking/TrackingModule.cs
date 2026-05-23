@@ -17,6 +17,7 @@ public static class TrackingModule
 
         services.AddScoped<IGeoService, RedisGeoService>();
         services.AddScoped<UpdateDriverLocationHandler>();
+        services.AddHostedService<RideViewConsumer>();
 
         return services;
     }

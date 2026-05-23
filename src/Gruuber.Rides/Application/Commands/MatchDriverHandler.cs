@@ -36,7 +36,8 @@ public class MatchDriverHandler
 
         // Get candidates from scoring service (uses Redis GEO + DB ratings)
         var candidates = await _scoring.GetScoredCandidatesAsync(
-            command.RideId, command.RegionId, W1, W2, W3, cancellationToken);
+            command.RideId, command.RegionId, W1, W2, W3,
+            ride.PickupLat, ride.PickupLng, cancellationToken);
 
         if (!candidates.Any())
         {

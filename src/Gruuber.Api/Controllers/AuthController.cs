@@ -11,11 +11,13 @@ public class AuthController : ControllerBase
 {
     private readonly LoginHandler _loginHandler;
     private readonly RefreshTokenHandler _refreshHandler;
+    private readonly RegisterHandler _registerHandler;
 
-    public AuthController(LoginHandler loginHandler, RefreshTokenHandler refreshHandler)
+    public AuthController(LoginHandler loginHandler, RefreshTokenHandler refreshHandler, RegisterHandler registerHandler)
     {
         _loginHandler = loginHandler;
         _refreshHandler = refreshHandler;
+        _registerHandler = registerHandler;
     }
 
     [HttpPost("login")]
@@ -29,6 +31,13 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Refresh([FromBody] RefreshCommand command, CancellationToken cancellationToken)
     {
         var result = await _refreshHandler.HandleAsync(command, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterCommand command, CancellationToken cancellationToken)
+    {
+        var result = await _registerHandler.HandleAsync(command, cancellationToken);
         return result.ToHttpResult(this);
     }
 }

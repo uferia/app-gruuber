@@ -10,7 +10,9 @@ using Gruuber.Tracking;
 using Gruuber.Tracking.Application;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Enrichers.Span;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, cfg) =>
     cfg.ReadFrom.Configuration(ctx.Configuration)
        .Enrich.FromLogContext()
+       .Enrich.WithSpan()
        .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter()));
 
 // Redis
@@ -46,6 +49,9 @@ builder.Services.AddScoped<IDriverScoringService, DefaultDriverScoringService>()
 // SignalR
 builder.Services.AddSignalR();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<Gruuber.SharedKernel.Infrastructure.ICurrentUserContext, Gruuber.SharedKernel.Infrastructure.CurrentUserContext>();
+
 // YARP reverse proxy
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -59,7 +65,21 @@ builder.Services.AddHealthChecks()
     .AddRedis(
         redisConn,
         name: "redis",
+        tags: new[] { "ready" })
+    .AddKafka(
+        new Confluent.Kafka.ProducerConfig
+        {
+            BootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092"
+        },
+        name: "kafka",
         tags: new[] { "ready" });
+
+// OpenTelemetry tracing
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddConsoleExporter());
 
 builder.Services.AddControllers();
 
@@ -102,9 +122,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 
-app.UseSwagger();
-app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Gruuber API v1"));
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+app.UseHttpsRedirection();
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Gruuber API v1"));
+}
+
+app.UseMiddleware<RedisRateLimiterMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

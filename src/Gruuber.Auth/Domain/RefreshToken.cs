@@ -11,14 +11,14 @@ public class RefreshToken : EntityBase
 
     private RefreshToken() { }
 
-    public static RefreshToken Create(Guid userId, string tokenHash, int regionId)
+    public static RefreshToken Create(Guid userId, string tokenHash, int regionId, int ttlDays = 30)
     {
         return new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             TokenHash = tokenHash,
-            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            ExpiresAt = DateTime.UtcNow.AddDays(ttlDays),
             IsRevoked = false,
             RegionId = regionId
         };

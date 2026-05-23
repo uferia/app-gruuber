@@ -3,6 +3,7 @@ using System;
 using Gruuber.Rides.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gruuber.Rides.Infrastructure.Migrations
 {
     [DbContext(typeof(RidesDbContext))]
-    partial class RidesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260523050923_AddRidePickupCoords")]
+    partial class AddRidePickupCoords
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

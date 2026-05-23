@@ -21,14 +21,15 @@ public class DefaultDriverScoringService : IDriverScoringService
 
     public async Task<IEnumerable<DriverCandidate>> GetScoredCandidatesAsync(
         Guid rideId, int regionId, double w1, double w2, double w3,
+        double pickupLat, double pickupLng,
         CancellationToken cancellationToken = default)
     {
         // Start with 3km radius; expand to 5km if no candidates found
-        var nearby = (await _geo.GetNearbyDriversAsync(0, 0, regionId, 3.0, cancellationToken)).ToList();
+        var nearby = (await _geo.GetNearbyDriversAsync(pickupLat, pickupLng, regionId, 3.0, cancellationToken)).ToList();
         if (!nearby.Any())
         {
             _logger.LogWarning("No drivers within 3km for region {RegionId}, expanding to 5km", regionId);
-            nearby = (await _geo.GetNearbyDriversAsync(0, 0, regionId, 5.0, cancellationToken)).ToList();
+            nearby = (await _geo.GetNearbyDriversAsync(pickupLat, pickupLng, regionId, 5.0, cancellationToken)).ToList();
         }
 
         _logger.LogInformation("Found {Count} driver candidates for ride {RideId}", nearby.Count, rideId);
