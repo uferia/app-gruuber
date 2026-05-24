@@ -28,6 +28,12 @@ Combined ride-hailing + food delivery platform built as a **modular monolith (AS
 - Surge pricing
 - Promotions
 
+### Implemented Features (beyond base spec)
+- **Surge Pricing** — dynamic multiplier engine driven by supply/demand ratio per region
+- **Ride Pooling** — shared rides with pool queue, compatibility matching, and solo-upgrade flow
+- **Driver & Restaurant Dashboards** — analytics module with daily stats, export (CSV/PDF), and admin overview
+- **In-App Chat** — real-time rider↔driver and rider↔restaurant messaging (isolated module)
+
 ---
 
 ## Method
@@ -362,6 +368,71 @@ Background worker publishes to Kafka.
 
 ---
 
+### Feature Modules
+
+#### Surge Pricing (`Gruuber.SurgePricing`)
+
+Dynamic fare multiplier based on supply/demand ratio per region. Activates when demand exceeds supply threshold.
+
+- **`SurgePricingEngine`** — computes multiplier: `demand / max(1, supply)`, clamped to configurable max (default 3×)
+- **`SurgeMultiplierConsumer`** — Kafka `BackgroundService` consuming ride/order events to track supply/demand counters in Redis
+- **`SurgePricingController`** — `GET /v1/surge/{regionId}` (current multiplier), `POST /v1/surge/{regionId}/override` (admin), `DELETE /v1/surge/{regionId}/override` (admin)
+- Redis keys: `surge:demand:{regionId}`, `surge:supply:{regionId}`, `surge:override:{regionId}` (TTL-based)
+- Multiplier applied at ride/order creation; stored on the entity at time of booking
+
+#### Ride Pooling (`Gruuber.Rides`)
+
+Shared rides where up to 2 riders share a driver, with pricing incentive for pooling.
+
+- **Pool queue** — rides in `PoolQueued` status wait up to 5 minutes for a compatible match (same region, nearby pickup/dropoff)
+- **`PoolMatcherService`** — background sweep every 30s; pairs compatible pool candidates and transitions them to `Matched`
+- **`PoolTimeoutWorker`** — background sweep every 30s; cancels rides that exceed pool wait timeout
+- **`AcceptSoloUpgradeHandler`** — rider can opt out of pool queue early via `POST /v1/rides/{id}/accept-solo-upgrade`
+- State: `requested → pool_queued → matched → en_route → arrived → completed | cancelled`
+
+#### Driver & Restaurant Dashboards (`Gruuber.Analytics`)
+
+Separate analytics module with its own `AnalyticsDbContext` (never touches ride/order write tables).
+
+- **`AnalyticsConsumerService`** — Kafka consumer building daily aggregated stats from `ride_completed`, `ride_cancelled`, `order_delivered`, `order_cancelled`, `payment_success` events
+- **`DriverDashboardQueryHandler`** — weekly earnings, trip count, ratings summary
+- **`RestaurantDashboardQueryHandler`** — revenue by period, order counts, menu item performance (sorted by units sold)
+- **`AdminDashboardQueryHandler`** — platform-wide metrics: active drivers, revenue, order volume
+- **`ExportJobService`** — async export pipeline (CSV via CsvHelper, PDF via QuestPDF); client polls job status
+- Idempotency via `processed_analytics_events` dedup table
+
+**Analytics endpoints** (`/v1/analytics/`)
+- `GET /v1/analytics/driver/summary` — driver weekly summary
+- `GET /v1/analytics/driver/earnings` — earnings by date range
+- `GET /v1/analytics/restaurant/summary` — restaurant performance summary
+- `GET /v1/analytics/restaurant/menu` — menu item performance
+- `GET /v1/analytics/admin/summary` — platform-wide overview
+- `POST /v1/analytics/{role}/exports` — enqueue export job
+- `GET /v1/analytics/{role}/exports/{jobId}` — poll export status + download URL
+
+#### In-App Chat (`Gruuber.Chat`)
+
+Isolated real-time chat module — **intentionally no FK to rides/orders** for clean future microservice extraction.
+
+- **`ChatHub`** (SignalR) — real-time messaging; groups by `chat:{threadId}` (separate from `LocationHub`)
+  - `JoinThread` — joins group, marks inbound messages as `delivered`
+  - `SendMessage` — validates thread active, persists, broadcasts `MessageReceived`
+  - `MarkRead` — updates delivery status, broadcasts `MessageRead` read receipts
+- **`ChatEventProcessor` + `ChatThreadConsumer`** — Kafka consumer auto-creates threads on `ride_matched` (1 thread: rider↔driver) and `order_accepted` (2 threads: rider↔driver, rider↔restaurant); idempotent
+- **`ChatThreadClosureWorker`** — 5-min sweep; marks threads past `closes_at` as `read_only`
+- **`ChatQueryHandler`** — paginated message history (oldest-first), thread list, quick reply templates
+- Display names are always anonymized role labels: `"Your Rider"`, `"Your Driver"`, `"Restaurant Staff"` — never PII
+- Thread auto-expires 24h after creation via `closes_at`
+
+**Chat endpoints** (`/v1/chat/`)
+- `GET /v1/chat/threads` — list user's threads (filtered by `context_id`)
+- `GET /v1/chat/threads/{threadId}/messages` — paginated messages (403 if not a participant)
+- `GET /v1/chat/quick-replies` — quick reply templates by role + locale
+
+**Chat hub** — `wss://.../hubs/chat`
+
+---
+
 ### APIs
 
 **Auth**
@@ -389,6 +460,29 @@ Background worker publishes to Kafka.
 
 **Tracking**
 - `POST /v1/drivers/location` — driver heartbeat/location update *(requires `driver` role)*
+
+**Surge Pricing**
+- `GET /v1/surge/{regionId}` — get current surge multiplier for a region
+- `POST /v1/surge/{regionId}/override` — admin override multiplier *(requires `admin` role)*
+- `DELETE /v1/surge/{regionId}/override` — remove admin override *(requires `admin` role)*
+
+**Ride Pooling**
+- `POST /v1/rides/{id}/accept-solo-upgrade` — rider opts out of pool queue early *(requires `rider` role)*
+
+**Analytics / Dashboards**
+- `GET /v1/analytics/driver/summary` — driver weekly summary *(requires `driver` role)*
+- `GET /v1/analytics/driver/earnings` — earnings by date range *(requires `driver` role)*
+- `GET /v1/analytics/restaurant/summary` — restaurant performance summary *(requires `restaurant` role)*
+- `GET /v1/analytics/restaurant/menu` — menu item performance *(requires `restaurant` role)*
+- `GET /v1/analytics/admin/summary` — platform-wide overview *(requires `admin` role)*
+- `POST /v1/analytics/{role}/exports` — enqueue CSV or PDF export job
+- `GET /v1/analytics/{role}/exports/{jobId}` — poll export job status + download URL
+
+**In-App Chat**
+- `GET /v1/chat/threads` — list threads the caller is a participant in
+- `GET /v1/chat/threads/{threadId}/messages` — paginated message history *(403 if not a participant)*
+- `GET /v1/chat/quick-replies` — quick reply templates by role and locale
+- SignalR hub: `wss://.../hubs/chat` — real-time messaging (JoinThread, SendMessage, MarkRead)
 
 ---
 
@@ -426,7 +520,11 @@ Background worker publishes to Kafka.
 5. Ride + order flows
 6. Payment integration
 7. SignalR real-time
-8. Load test targets:
+8. Surge Pricing — dynamic fare multiplier (supply/demand, Redis-backed, admin override)
+9. Ride Pooling — shared rides with pool queue, match sweep, solo-upgrade escape hatch
+10. Driver & Restaurant Dashboards — analytics module with daily stats aggregation + CSV/PDF export
+11. In-App Chat — isolated real-time chat module (SignalR hub + Kafka auto-thread creation)
+12. Load test targets:
    - 10,000 concurrent users
    - 120 ride requests/sec sustained
    - 80 food orders/sec sustained
