@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Gruuber.Rides.Application;
 using Gruuber.Rides.Domain;
 using Gruuber.Rides.Infrastructure;
 using Gruuber.SharedKernel.Results;
@@ -10,6 +10,7 @@ public class TransitionRideHandler
 {
     private readonly RidesDbContext _db;
     private readonly ILogger<TransitionRideHandler> _logger;
+    private readonly RideOutboxFactory _outboxFactory = new();
 
     private static readonly Dictionary<RideStatus, RideStatus[]> AllowedTransitions = new()
     {
@@ -48,19 +49,8 @@ public class TransitionRideHandler
         if (!transitioned)
             return ApplicationResult<TransitionRideResponse>.Conflict(ride.Id, ride.Version);
 
-        _db.Set<RideOutboxEntry>().Add(new RideOutboxEntry
-        {
-            EventType = $"ride-events-{command.RegionId}",
-            Payload = JsonSerializer.Serialize(new
-            {
-                EventName = "ride_status_changed",
-                RideId = ride.Id,
-                NewStatus = targetStatus.ToString(),
-                ActorId = command.ActorId,
-                RegionId = command.RegionId,
-                OccurredAt = DateTime.UtcNow
-            })
-        });
+        _db.Set<RideOutboxEntry>().Add(_outboxFactory.CreateRideStatusChanged(
+            command.RegionId, ride.Id, targetStatus.ToString(), command.ActorId));
 
         await _db.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);

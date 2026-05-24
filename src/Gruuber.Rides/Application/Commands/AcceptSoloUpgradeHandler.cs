@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Gruuber.Rides.Application;
 using Gruuber.Rides.Infrastructure;
 using Gruuber.SharedKernel.Results;
 using Microsoft.Extensions.Logging;
@@ -9,6 +9,7 @@ public class AcceptSoloUpgradeHandler
 {
     private readonly RidesDbContext _db;
     private readonly ILogger<AcceptSoloUpgradeHandler> _logger;
+    private readonly RideOutboxFactory _outboxFactory = new();
 
     public AcceptSoloUpgradeHandler(RidesDbContext db, ILogger<AcceptSoloUpgradeHandler> logger)
     {
@@ -29,19 +30,7 @@ public class AcceptSoloUpgradeHandler
         if (!ride.TryUpgradeToSolo(command.ExpectedVersion))
             return ApplicationResult<AcceptSoloUpgradeResponse>.Conflict(ride.Id, ride.Version);
 
-        var outboxEntry = new RideOutboxEntry
-        {
-            EventType = "ride_pool_upgraded",
-            Payload = JsonSerializer.Serialize(new
-            {
-                EventName = "ride_pool_upgraded",
-                RideId = ride.Id,
-                RiderId = ride.RiderId,
-                RegionId = command.RegionId,
-                PreviousStatus = "pool_queued",
-                OccurredAt = DateTime.UtcNow
-            })
-        };
+        var outboxEntry = _outboxFactory.CreateRidePoolUpgraded(command.RegionId, ride.Id, ride.RiderId);
 
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
         _db.Set<RideOutboxEntry>().Add(outboxEntry);

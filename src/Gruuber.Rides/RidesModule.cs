@@ -21,6 +21,7 @@ public static class RidesModule
         services.AddScoped<GetRideStatusHandler>();
         services.AddScoped<TransitionRideHandler>();
         services.AddScoped<AcceptSoloUpgradeHandler>();
+        services.AddSingleton<RideOutboxFactory>();
         services.AddHostedService<PoolMatcherService>();
         services.AddHostedService<PoolTimeoutWorker>();
 
