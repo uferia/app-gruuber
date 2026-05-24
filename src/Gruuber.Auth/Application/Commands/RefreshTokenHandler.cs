@@ -7,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Gruuber.Auth.Application.Commands;
 
-public class RefreshTokenHandler
+public class RefreshTokenHandler : ICommandHandler<RefreshCommand, RefreshResponse>
 {
     private readonly AuthDbContext _db;
     private readonly IJwtTokenService _jwt;

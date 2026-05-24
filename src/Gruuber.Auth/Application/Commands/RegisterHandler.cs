@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Gruuber.Auth.Application.Commands;
 
-public class RegisterHandler
+public class RegisterHandler : ICommandHandler<RegisterCommand, RegisterResponse>
 {
     private static readonly HashSet<string> ValidRoles = ["rider", "driver", "restaurant"];
     private readonly AuthDbContext _db;

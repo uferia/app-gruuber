@@ -5,7 +5,7 @@ namespace Gruuber.Auth.Application;
 public record LoginCommand(
     [Required][EmailAddress] string Email,
     [Required] string Password);
-public record LoginResponse(string AccessToken, string RefreshToken, string Role);
+public record LoginResponse(string AccessToken, string RefreshToken, string Role, string? ApprovalStatus = null);
 
 public record RefreshCommand(string RefreshToken);
 public record RefreshResponse(string AccessToken, string RefreshToken);

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Gruuber.Auth.Application.Commands;
 
-public class LoginHandler
+public class LoginHandler : ICommandHandler<LoginCommand, LoginResponse>
 {
     private readonly AuthDbContext _db;
     private readonly IJwtTokenService _jwt;
@@ -37,6 +37,14 @@ public class LoginHandler
         _db.RefreshTokens.Add(refreshToken);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return ApplicationResult<LoginResponse>.Success(new LoginResponse(accessToken, rawRefreshToken, user.Role));
+        string? approvalStatus = null;
+        if (user.Role == "driver")
+        {
+            var driverProfile = await _db.DriverProfiles
+                .FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken);
+            approvalStatus = driverProfile?.ApprovalStatus.ToString();
+        }
+
+        return ApplicationResult<LoginResponse>.Success(new LoginResponse(accessToken, rawRefreshToken, user.Role, approvalStatus));
     }
 }

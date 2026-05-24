@@ -19,9 +19,13 @@ public static class AuthModule
                 ?? configuration.GetConnectionString("Default")));
 
         services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.AddScoped<LoginHandler>();
-        services.AddScoped<RefreshTokenHandler>();
-        services.AddScoped<RegisterHandler>();
+        services.AddScoped<ICommandHandler<LoginCommand, LoginResponse>, LoginHandler>();
+        services.AddScoped<ICommandHandler<RefreshCommand, RefreshResponse>, RefreshTokenHandler>();
+        services.AddScoped<ICommandHandler<RegisterCommand, RegisterResponse>, RegisterHandler>();
+        services.AddScoped<ICommandHandler<RegisterRiderCommand, RegisterRiderResponse>, RegisterRiderHandler>();
+        services.AddScoped<ICommandHandler<RegisterDriverCommand, RegisterDriverResponse>, RegisterDriverHandler>();
+        services.AddScoped<ApproveDriverHandler>();
+        services.AddScoped<RejectDriverHandler>();
 
         var jwtSecret = configuration["Jwt:Secret"]
             ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
