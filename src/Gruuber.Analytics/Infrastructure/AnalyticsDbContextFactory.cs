@@ -8,7 +8,7 @@ public class AnalyticsDbContextFactory : IDesignTimeDbContextFactory<AnalyticsDb
     public AnalyticsDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<AnalyticsDbContext>()
-            .UseNpgsql("Host=localhost;Database=gruuber_analytics;Username=postgres;Password=postgres")
+            .UseNpgsql("Host=localhost;Database=gruuber_analytics;Username=gruuber;Password=gruuber")
             .Options;
         return new AnalyticsDbContext(options);
     }
