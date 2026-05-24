@@ -1,0 +1,40 @@
+<h2>In-App Chat — Architecture Approaches</h2>
+<p class="subtitle">3 approaches for real-time chat across Rider↔Driver, Customer↔Restaurant, and Driver↔Restaurant channels. All use SignalR — the difference is in message persistence and channel management.</p>
+
+<div class="options">
+  <div class="option" data-choice="contextual" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>🗂 Context-Scoped Chat Rooms (Ride/Order ID) <span style="font-size:0.75rem;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:999px;margin-left:8px;">Recommended</span></h3>
+      <p>Each active ride/order gets a dedicated chat room keyed by its ID (e.g. <code>chat:{rideId}</code>). Messages stored in a <code>chat_messages</code> table with <code>context_id</code> (ride or order UUID) and <code>context_type</code>. SignalR groups already exist per ride — chat joins the same group. Room auto-closes and becomes read-only 6h after ride/order completion.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Natural fit — SignalR ride groups already exist</li><li>All 3 channel types (Rider↔Driver, Customer↔Restaurant, Driver↔Restaurant) handled by same model</li><li>Simple access control — participants are ride/order members</li><li>Easy to archive with the ride record</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Driver↔Restaurant needs its own context (order-scoped)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="dedicated" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>💬 Dedicated Chat Module (Gruuber.Chat)</h3>
+      <p>A standalone <code>Gruuber.Chat</code> module owns all chat entities: <code>chat_threads</code>, <code>chat_participants</code>, <code>chat_messages</code>. Other modules publish <code>ride_started</code> / <code>order_accepted</code> events which trigger thread creation via Kafka consumer. Cleanest domain separation.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Fully decoupled from Rides and Orders</li><li>Easiest to evolve independently</li><li>Cleanest boundaries for future microservice split</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More infrastructure — new module, new Kafka consumers, new DB tables</li><li>Thread creation has Kafka lag — chat not instantly available on ride start</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="ephemeral" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>⚡ Ephemeral Redis Chat (No DB persistence)</h3>
+      <p>Messages stored only in Redis Lists per context (e.g. <code>chat_history:{rideId}</code>) with a 6h TTL. SignalR delivers in real-time. No DB writes for chat — minimal infrastructure. On TTL expiry messages are gone.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Extremely simple — no new DB tables</li><li>Zero DB write overhead per message</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Redis loss = lost chat history (no durability)</li><li>Can't query/audit messages after the fact</li><li>Read receipts require DB or second Redis structure anyway</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

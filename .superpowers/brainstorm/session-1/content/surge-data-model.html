@@ -1,0 +1,65 @@
+<h2>Surge Pricing Design — Section 1: Data Model</h2>
+<p class="subtitle">Configuration tables, ride/order schema additions, and Redis keys.</p>
+
+<div class="section">
+  <h3>New Table: <code>surge_config</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> surge_config (<br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INT NOT NULL,<br>
+      &nbsp;&nbsp;ride_type &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL, <span style="color:gray">-- 'ride' | 'food'</span><br>
+      &nbsp;&nbsp;demand_ratio_threshold NUMERIC NOT NULL, <span style="color:gray">-- e.g. 0.7 = 70% drivers busy</span><br>
+      &nbsp;&nbsp;multiplier &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NUMERIC NOT NULL, <span style="color:gray">-- e.g. 1.5</span><br>
+      &nbsp;&nbsp;max_multiplier &nbsp;&nbsp;NUMERIC NOT NULL, <span style="color:gray">-- hard cap, e.g. 3.0</span><br>
+      &nbsp;&nbsp;updated_at &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TIMESTAMP,<br>
+      &nbsp;&nbsp;<span style="color:#10b981">PRIMARY KEY (region_id, ride_type, demand_ratio_threshold)</span><br>
+      );<br><br>
+      <span style="color:gray">-- Multiple rows per region/type define the stepped tiers:</span><br>
+      <span style="color:gray">-- threshold 0.5 → 1.5x, threshold 0.75 → 2.0x, threshold 0.90 → 2.5x</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>New Table: <code>surge_time_rules</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> surge_time_rules (<br>
+      &nbsp;&nbsp;id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UUID PRIMARY KEY,<br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;INT NOT NULL,<br>
+      &nbsp;&nbsp;ride_type &nbsp;&nbsp;TEXT NOT NULL,<br>
+      &nbsp;&nbsp;day_of_week INT NOT NULL, <span style="color:gray">-- 0=Sun … 6=Sat, NULL = every day</span><br>
+      &nbsp;&nbsp;start_time &nbsp;TIME NOT NULL,<br>
+      &nbsp;&nbsp;end_time &nbsp;&nbsp;&nbsp;TIME NOT NULL,<br>
+      &nbsp;&nbsp;multiplier &nbsp;NUMERIC NOT NULL, <span style="color:gray">-- applied if active, overrides demand tier</span><br>
+      &nbsp;&nbsp;is_active &nbsp;&nbsp;BOOLEAN NOT NULL DEFAULT true<br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Schema Additions to <code>rides</code> and <code>orders</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> base_fare &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NUMERIC;<br>
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> surge_multiplier NUMERIC NOT NULL DEFAULT 1.0;<br>
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> final_fare &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NUMERIC; <span style="color:gray">-- locked at booking</span><br>
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> surge_reason &nbsp;&nbsp;&nbsp;TEXT; <span style="color:gray">-- 'demand' | 'time_rule' | null</span><br><br>
+      <span style="color:gray">-- Same 4 columns added to orders table</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Redis Keys</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#f59e0b">surge_config:{regionId}:{rideType}</span> &nbsp;TTL: 60s<br>
+      <span style="color:gray">→ Cached JSON of surge_config + surge_time_rules rows for this region/type</span><br>
+      <span style="color:gray">→ Populated on first request, invalidated on admin config update</span>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this data model look right?</p>

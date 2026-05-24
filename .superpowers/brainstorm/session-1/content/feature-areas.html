@@ -1,0 +1,75 @@
+<h2>What areas interest you most?</h2>
+<p class="subtitle">Gruuber already has: Auth · Ride Booking · Food Orders · Real-time Tracking · Payments · CQRS/Kafka. Select any feature areas you'd like to explore adding.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="scheduled" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>🗓 Scheduled Rides &amp; Orders</h3>
+      <p>Let users pre-book rides or food delivery for a future time. Requires a scheduling engine and reminder notifications.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="pooling" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>🚗 Ride Pooling / Carpooling</h3>
+      <p>Match multiple riders going the same direction. Reduces cost for riders, increases driver utilization. Adds route optimization complexity.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="ratings" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>⭐ Ratings &amp; Reviews</h3>
+      <p>Bidirectional rating system — riders rate drivers, drivers rate riders, users rate restaurants. Feeds into the driver matching score already defined.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>💬 In-App Chat</h3>
+      <p>Real-time messaging between rider and driver (or customer and restaurant). Built on SignalR, fits naturally into the existing architecture.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="surge" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>⚡ Surge Pricing</h3>
+      <p>Dynamic price multipliers based on demand vs driver supply in a region. Already listed as "Could Have" in the spec — ready to design.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="promos" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>🎟 Promotions &amp; Discount Codes</h3>
+      <p>Coupon/promo system for riders and restaurants. Also spec'd as "Could Have". Connects to the payment flow for discount application.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="subscription" onclick="toggleSelect(this)">
+    <div class="letter">G</div>
+    <div class="content">
+      <h3>🎫 Subscription / Gruuber Pass</h3>
+      <p>Monthly subscription that gives riders discounted rides or free delivery. Recurring billing, entitlement checks at order/ride creation.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="sos" onclick="toggleSelect(this)">
+    <div class="letter">H</div>
+    <div class="content">
+      <h3>🆘 Safety Features (SOS)</h3>
+      <p>In-ride SOS button, trip sharing with a contact, driver identity verification photo. Critical for user trust in a ride-hailing platform.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="analytics" onclick="toggleSelect(this)">
+    <div class="letter">I</div>
+    <div class="content">
+      <h3>📊 Driver &amp; Restaurant Dashboards</h3>
+      <p>Earnings summaries, performance metrics, and order history for drivers and restaurant owners. Read-model driven, low operational cost.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="multistop" onclick="toggleSelect(this)">
+    <div class="letter">J</div>
+    <div class="content">
+      <h3>📍 Multi-Stop Rides</h3>
+      <p>Riders add intermediate stops in a single trip. Fare calculated per segment. Extends the ride state machine with waypoint transitions.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,68 @@
+<h2>Surge Pricing Design — Section 2: Fare Calculation Flow & API</h2>
+<p class="subtitle">How SurgePricingService computes the multiplier and locks the fare at booking time.</p>
+
+<div class="section">
+  <h3>SurgePricingService — Multiplier Resolution</h3>
+  <div class="mockup">
+    <div class="mockup-header">Called inline during POST /v1/rides/request and POST /v1/orders/create</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">1.</span> Load config from Redis <code>surge_config:{regionId}:{rideType}</code> (TTL 60s)<br>
+      &nbsp;&nbsp;&nbsp;If cache miss → query DB, populate cache<br><br>
+      <span style="color:#6366f1">2.</span> Check <code>surge_time_rules</code> — is current time within an active rule?<br>
+      &nbsp;&nbsp;&nbsp;<span style="color:#10b981">If YES</span> → multiplier = time_rule.multiplier, reason = <span style="color:#f59e0b">'time_rule'</span><br>
+      &nbsp;&nbsp;&nbsp;<span style="color:#10b981">If NO</span> → evaluate demand/supply ratio:<br><br>
+      <span style="color:#6366f1">3.</span> Demand/supply ratio:<br>
+      &nbsp;&nbsp;&nbsp;active_requests = count of rides/orders in <span style="color:#f59e0b">'requested'</span> status for region<br>
+      &nbsp;&nbsp;&nbsp;available_drivers = ZCARD <code>driver_locations:{regionId}</code> (Redis GEO)<br>
+      &nbsp;&nbsp;&nbsp;ratio = active_requests / max(available_drivers, 1)<br><br>
+      <span style="color:#6366f1">4.</span> Walk surge_config tiers (desc by threshold) → pick highest matching tier<br>
+      &nbsp;&nbsp;&nbsp;multiplier = min(tier.multiplier, max_multiplier), reason = <span style="color:#f59e0b">'demand'</span><br>
+      &nbsp;&nbsp;&nbsp;If no tier matches → multiplier = 1.0, reason = null<br><br>
+      <span style="color:#6366f1">5.</span> Return: <code>{ multiplier, reason, base_fare, final_fare = base_fare * multiplier }</code>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Fare Lock on Ride/Order Creation</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">In same DB transaction as ride/order INSERT:</span><br>
+      &nbsp;&nbsp;rides.base_fare = calculated base fare<br>
+      &nbsp;&nbsp;rides.surge_multiplier = resolved multiplier<br>
+      &nbsp;&nbsp;rides.final_fare = base_fare × surge_multiplier<br>
+      &nbsp;&nbsp;rides.surge_reason = 'demand' | 'time_rule' | null<br><br>
+      <span style="color:gray">final_fare never changes after this point — rider is price-guaranteed</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>API Response Changes (non-breaking)</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">POST</span> /v1/rides/request → 202 Accepted<br>
+      &nbsp;&nbsp;{ ride_id, status, <span style="color:#10b981">fare_estimate: { base_fare, final_fare, surge_multiplier?, surge_reason? }</span> }<br>
+      &nbsp;&nbsp;<span style="color:gray">surge_multiplier + surge_reason only included if multiplier > 1.0</span><br><br>
+      <span style="color:#6366f1">POST</span> /v1/orders/create → 202 Accepted<br>
+      &nbsp;&nbsp;{ order_id, status, <span style="color:#10b981">fare_estimate: { base_fare, final_fare, surge_multiplier?, surge_reason? }</span> }<br><br>
+      <span style="color:#6366f1">GET</span> /v1/rides/{id} <span style="color:gray">— returns base_fare, final_fare, surge_multiplier, surge_reason on the ride</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/surge/estimate?region_id=&amp;ride_type=ride|food <span style="color:gray">— new: preview fare multiplier before booking</span><br>
+      &nbsp;&nbsp;{ surge_multiplier, surge_reason, valid_for_secs: 30 }
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Admin Config Invalidation</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">PUT</span> /v1/admin/surge/config &nbsp;<span style="color:gray">(admin role only)</span><br>
+      &nbsp;&nbsp;→ Updates surge_config / surge_time_rules in DB<br>
+      &nbsp;&nbsp;→ Immediately deletes Redis key <code>surge_config:{regionId}:{rideType}</code><br>
+      &nbsp;&nbsp;→ Next request repopulates cache from fresh DB data
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this flow and API design look right?</p>

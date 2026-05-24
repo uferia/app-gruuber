@@ -16,6 +16,7 @@ public class RidesController : ControllerBase
     private readonly MatchDriverHandler _matchHandler;
     private readonly GetRideStatusHandler _statusHandler;
     private readonly TransitionRideHandler _transitionHandler;
+    private readonly AcceptSoloUpgradeHandler _soloUpgradeHandler;
     private readonly ICurrentUserContext _currentUser;
 
     public RidesController(
@@ -23,12 +24,14 @@ public class RidesController : ControllerBase
         MatchDriverHandler matchHandler,
         GetRideStatusHandler statusHandler,
         TransitionRideHandler transitionHandler,
+        AcceptSoloUpgradeHandler soloUpgradeHandler,
         ICurrentUserContext currentUser)
     {
         _requestHandler = requestHandler;
         _matchHandler = matchHandler;
         _statusHandler = statusHandler;
         _transitionHandler = transitionHandler;
+        _soloUpgradeHandler = soloUpgradeHandler;
         _currentUser = currentUser;
     }
 
@@ -67,6 +70,18 @@ public class RidesController : ControllerBase
         var result = await _transitionHandler.HandleAsync(cmd, cancellationToken);
         return result.ToHttpResult(this);
     }
+
+    [HttpPost("{id:guid}/accept-solo-upgrade")]
+    [Authorize(Policy = "rider")]
+    public async Task<IActionResult> AcceptSoloUpgrade(
+        Guid id,
+        [FromBody] AcceptSoloUpgradeRequest body,
+        CancellationToken ct)
+    {
+        var result = await _soloUpgradeHandler.HandleAsync(
+            new AcceptSoloUpgradeCommand(id, body.ExpectedVersion, _currentUser.UserId, _currentUser.RegionId), ct);
+        return result.ToHttpResult(this);
+    }
 }
 
 public record RequestRideRequest(
@@ -79,3 +94,4 @@ public record MatchRideRequest([Range(1, long.MaxValue)] long ExpectedVersion);
 public record TransitionRideRequest(
     [Required] string NewStatus,
     [Range(1, long.MaxValue)] long ExpectedVersion);
+public record AcceptSoloUpgradeRequest([Range(1, long.MaxValue)] long ExpectedVersion);

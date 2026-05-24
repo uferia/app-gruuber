@@ -1,0 +1,65 @@
+<h2>Dashboards Design — Section 2: API & Kafka Consumers</h2>
+<p class="subtitle">Endpoints for each role + the Kafka consumer upsert pattern that populates the tables.</p>
+
+<div class="section">
+  <h3>Driver Dashboard API</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">GET</span> /v1/analytics/driver/summary?period=daily|weekly|monthly<br>
+      <span style="color:gray">&nbsp;&nbsp;→ earnings, trips, rating, acceptance_rate, online_time, bonuses, payouts</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/driver/trips?page=1&amp;limit=20&amp;from=&amp;to=<br>
+      <span style="color:gray">&nbsp;&nbsp;→ paginated trip history with fare, status, pool_slot</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/driver/earnings/export?format=csv|pdf&amp;from=&amp;to=<br>
+      <span style="color:gray">&nbsp;&nbsp;→ 202 Accepted + job_id (async export generation)</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/driver/exports/{job_id}<br>
+      <span style="color:gray">&nbsp;&nbsp;→ 200 { download_url } | 202 { status: "processing" }</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Restaurant Dashboard API</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">GET</span> /v1/analytics/restaurant/summary?period=daily|weekly|monthly<br>
+      <span style="color:gray">&nbsp;&nbsp;→ orders, revenue, avg_prep_time, avg_rating, cancellation_rate</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/restaurant/orders?page=1&amp;limit=20&amp;from=&amp;to=<br>
+      <span style="color:gray">&nbsp;&nbsp;→ paginated order history</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/restaurant/menu-performance?period=weekly|monthly<br>
+      <span style="color:gray">&nbsp;&nbsp;→ items ranked by units_sold + revenue (best/worst sellers)</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/restaurant/revenue/export?format=csv|pdf&amp;from=&amp;to=<br>
+      <span style="color:gray">&nbsp;&nbsp;→ async export, same job_id pattern as driver</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Admin Dashboard API</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">GET</span> /v1/analytics/admin/summary?region_id=&amp;period=daily|weekly|monthly<br>
+      <span style="color:gray">&nbsp;&nbsp;→ platform totals: rides, orders, revenue, active drivers/restaurants</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/analytics/admin/export?format=csv|pdf&amp;region_id=&amp;from=&amp;to=<br>
+      <span style="color:gray">&nbsp;&nbsp;→ async export</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Kafka Consumer Upsert Pattern</h3>
+  <div class="mockup">
+    <div class="mockup-header">AnalyticsConsumerService — listens to all region topics</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#f59e0b">On ride_completed</span> → UPSERT driver_stats_daily (driver_id, TODAY)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UPSERT admin_stats_daily (region_id, TODAY)<br><br>
+      <span style="color:#f59e0b">On order_delivered</span> → UPSERT restaurant_stats_daily (restaurant_id, TODAY)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UPSERT menu_item_stats_daily per order_item<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UPSERT admin_stats_daily (region_id, TODAY)<br><br>
+      <span style="color:#f59e0b">On ride_rated / order_rated</span> → recalc avg_rating via rolling average upsert<br><br>
+      <span style="color:gray">All upserts use INSERT ... ON CONFLICT (pk) DO UPDATE SET col = col + delta</span><br>
+      <span style="color:gray">Idempotency: each event carries event_id; consumer deduplicates via processed_events table</span>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this API and consumer pattern look right?</p>

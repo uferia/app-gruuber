@@ -1,0 +1,57 @@
+<h2>Ride Pooling Design — Section 1: Data Model</h2>
+<p class="subtitle">Schema changes to support pool rides using the Ride Type Variant approach.</p>
+
+<div class="section">
+  <h3>Schema Changes</h3>
+  <div class="mockup">
+    <div class="mockup-header">rides table — additions</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.85rem;line-height:1.8">
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> ride_type TEXT NOT NULL DEFAULT <span style="color:#10b981">'solo'</span>;<br>
+      <span style="color:gray">-- 'solo' | 'pool'</span><br><br>
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> pool_trip_id UUID NULL;<br>
+      <span style="color:gray">-- groups the 2 rides in a pool trip</span><br><br>
+      <span style="color:#6366f1">ALTER TABLE</span> rides <span style="color:#6366f1">ADD COLUMN</span> pool_slot INT NULL;<br>
+      <span style="color:gray">-- 1 = first rider (defines route), 2 = second rider (added stop)</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>New Table: pool_region_rates</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.85rem;line-height:1.8">
+      <span style="color:#6366f1">CREATE TABLE</span> pool_region_rates (<br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;&nbsp;INT PRIMARY KEY,<br>
+      &nbsp;&nbsp;discount_pct NUMERIC NOT NULL, <span style="color:gray">-- e.g. 0.20 = 20% off solo fare</span><br>
+      &nbsp;&nbsp;match_timeout_secs INT NOT NULL DEFAULT 120,<br>
+      &nbsp;&nbsp;max_detour_km &nbsp;NUMERIC NOT NULL DEFAULT 2.0,<br>
+      &nbsp;&nbsp;updated_at &nbsp;&nbsp;TIMESTAMP<br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Read Model</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.85rem;line-height:1.8">
+      <span style="color:gray">-- ride_views gets no new PII fields (privacy enforced)</span><br>
+      <span style="color:#6366f1">ALTER TABLE</span> ride_views <span style="color:#6366f1">ADD COLUMN</span> ride_type TEXT;<br>
+      <span style="color:#6366f1">ALTER TABLE</span> ride_views <span style="color:#6366f1">ADD COLUMN</span> pool_slot INT;
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Redis Pool Queue</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.85rem;line-height:1.8">
+      <span style="color:gray">-- Sorted set per region, score = request timestamp</span><br>
+      Key: <span style="color:#f59e0b">pool_queue:{regionId}</span><br>
+      Value: <span style="color:#10b981">{ rideId, riderId, lat, lng, destLat, destLng, requestedAt }</span><br><br>
+      TTL: match_timeout_secs (from pool_region_rates)
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this data model look right to you?</p>

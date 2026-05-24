@@ -1,0 +1,70 @@
+<h2>Ride Pooling Design — Section 3: API, Events & Error Handling</h2>
+<p class="subtitle">Endpoints, Kafka event contracts, and failure scenarios.</p>
+
+<div class="section">
+  <h3>API Changes</h3>
+  <div class="mockup">
+    <div class="mockup-header">Existing endpoint — extended, not modified</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:2">
+      <span style="color:#6366f1">POST</span> /v1/rides/request<br>
+      <span style="color:gray">Body (new optional field):</span><br>
+      &nbsp;&nbsp;{ origin, destination, <span style="color:#10b981">ride_type: "solo" | "pool"</span> }<br>
+      <span style="color:gray">Response (pool):</span><br>
+      &nbsp;&nbsp;202 Accepted { ride_id, status: "pool_queued", match_timeout_secs, discounted_fare_estimate }<br><br>
+      <span style="color:#6366f1">GET</span> /v1/rides/{id} &nbsp;<span style="color:gray">— unchanged, returns pool_slot + pool_trip_id if pool ride</span><br><br>
+      <span style="color:#6366f1">POST</span> /v1/rides/{id}/accept-solo-upgrade &nbsp;<span style="color:gray">— new: rider consent to fallback</span><br>
+      &nbsp;&nbsp;202 Accepted { status: "requested" } <span style="color:gray">(re-enters solo matching queue)</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Kafka Event Contracts</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:2">
+      <span style="color:#f59e0b">ride_pool_queued</span> → { ride_id, rider_id, region_id, origin, destination, requested_at }<br>
+      <span style="color:#f59e0b">ride_pool_matched</span> → { pool_trip_id, ride_ids:[id1,id2], driver_id, region_id, pickup_order }<br>
+      <span style="color:#f59e0b">ride_pool_timeout</span> → { ride_id, rider_id, region_id, reason: "no_match", notify_user: true }<br>
+      <span style="color:#f59e0b">ride_pool_upgraded</span> → { ride_id, rider_id, region_id, previous_status: "pool_queued" }<br>
+      <span style="color:#f59e0b">ride_partial_dropoff</span> → { pool_trip_id, completed_ride_id, remaining_ride_id, region_id }<br>
+      <br>
+      <span style="color:gray">All existing ride_* events (ride_matched, ride_completed, etc.) fire per-ride as before</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Error Handling & Edge Cases</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:4px 8px;color:#6366f1;font-weight:600">Scenario</td>
+          <td style="padding:4px 8px;color:#6366f1;font-weight:600">Handling</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Double-match race (two matchers pick same rider)</td>
+          <td style="padding:4px 8px">Lua atomic remove from Redis queue; loser retries with next candidate</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">No pool-capable drivers in region</td>
+          <td style="padding:4px 8px">Return 202 with pool_queued; fallback prompt after timeout</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Rider 2 cancels after pool_matched</td>
+          <td style="padding:4px 8px">Rider 1 continues as solo; driver re-matched if fare delta significant; compensation event emitted</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Driver cancels mid pool trip</td>
+          <td style="padding:4px 8px">Both rides enter re-matching; both riders notified via SignalR</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px">No pool_region_rates config for region</td>
+          <td style="padding:4px 8px">400 Bad Request — pool not available in this region</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this look good before we move to the final section (observability & testing)?</p>

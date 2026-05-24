@@ -1,0 +1,98 @@
+<h2>Surge Pricing Design — Section 3: Error Handling, Observability & Testing</h2>
+<p class="subtitle">Failure modes, logging, metrics, and test strategy.</p>
+
+<div class="section">
+  <h3>Error Handling</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Scenario</td>
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Handling</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Redis cache miss (cold start or eviction)</td>
+          <td style="padding:4px 8px">Fall through to DB query, populate cache — ride creation not blocked</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Redis unavailable</td>
+          <td style="padding:4px 8px">Fall back to direct DB query — log Warning; no error surfaced to rider</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">No surge_config for region/type</td>
+          <td style="padding:4px 8px">Default multiplier = 1.0 (no surge) — ride proceeds normally</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Multiplier exceeds max_multiplier</td>
+          <td style="padding:4px 8px">Clamped to max_multiplier — never surfaces raw tier value to rider</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">available_drivers = 0</td>
+          <td style="padding:4px 8px">Ratio = active_requests / 1 (avoid divide-by-zero); highest tier likely triggers</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px">Admin updates config mid-high-demand</td>
+          <td style="padding:4px 8px">Cache invalidated immediately; in-flight rides keep their locked fare unchanged</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Observability</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">Log fields</strong><br>
+      &nbsp;TraceId, SpanId, RegionId, RideId/OrderId, <code>SurgeMultiplier</code>, <code>SurgeReason</code><br><br>
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:3px 8px;font-weight:600;color:#6366f1">Metric</td>
+          <td style="padding:3px 8px;font-weight:600;color:#6366f1">Purpose</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>surge_active_{regionId}_{rideType}</code></td>
+          <td style="padding:3px 8px">Current multiplier gauge per region/type</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>surge_cache_misses</code></td>
+          <td style="padding:3px 8px">Frequency of Redis fallback to DB</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>surge_rides_pct</code></td>
+          <td style="padding:3px 8px">% of rides/orders booked at multiplier &gt; 1.0</td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px"><code>surge_calc_duration_ms</code></td>
+          <td style="padding:3px 8px">P95 target &lt; 10ms (must stay within request SLA)</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Testing</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">Unit Tests (Moq)</strong><br>
+      &nbsp;· Demand ratio below all thresholds → multiplier = 1.0, no surge fields in response<br>
+      &nbsp;· Demand ratio hits tier → correct multiplier returned<br>
+      &nbsp;· Multiplier exceeds max_multiplier → clamped correctly<br>
+      &nbsp;· Active time rule → time rule multiplier used, demand ratio skipped<br>
+      &nbsp;· Time rule inactive (outside window) → demand ratio evaluated<br>
+      &nbsp;· Redis unavailable → falls back to DB without error<br>
+      &nbsp;· No surge_config for region → multiplier defaults to 1.0<br><br>
+      <strong style="color:#6366f1">Integration Tests (Testcontainers — Postgres + Redis)</strong><br>
+      &nbsp;· Book ride during active time rule → final_fare = base × rule multiplier, locked in DB<br>
+      &nbsp;· Book ride at high demand → correct tier multiplier applied and persisted<br>
+      &nbsp;· Admin updates config → Redis invalidated → next request uses new config<br>
+      &nbsp;· GET /v1/surge/estimate returns correct multiplier matching subsequent booking<br>
+      &nbsp;· available_drivers = 0 → no divide-by-zero, highest tier triggers<br><br>
+      <strong style="color:#6366f1">Fare Lock Invariant</strong><br>
+      &nbsp;· Assert: ride.final_fare never changes after initial INSERT regardless of subsequent config updates
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">✅ All 3 sections approved. Ready to write the spec document?</p>

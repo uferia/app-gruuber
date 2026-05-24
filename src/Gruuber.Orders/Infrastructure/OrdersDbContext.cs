@@ -21,6 +21,10 @@ public class OrdersDbContext : DbContext
             e.Property(x => x.Version).IsConcurrencyToken();
             e.HasIndex(x => new { x.Status, x.RegionId });
             e.HasMany(x => x.Items).WithOne().HasForeignKey(i => i.OrderId);
+            e.Property(x => x.BaseFare).HasColumnType("numeric(10,2)");
+            e.Property(x => x.SurgeMultiplier).HasColumnType("numeric(6,2)").HasDefaultValue(1.0m);
+            e.Property(x => x.FinalFare).HasColumnType("numeric(10,2)");
+            e.Property(x => x.SurgeReason).HasMaxLength(32);
         });
 
         modelBuilder.Entity<OrderItem>(e =>

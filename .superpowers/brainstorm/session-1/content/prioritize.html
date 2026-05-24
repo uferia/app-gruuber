@@ -1,0 +1,40 @@
+<h2>Which feature should we design first?</h2>
+<p class="subtitle">You picked 8 great features. We'll design them one at a time — pick the one that's most valuable to tackle first.</p>
+
+<div class="options">
+  <div class="option" data-choice="surge" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>⚡ Surge Pricing</h3>
+      <p><strong>Recommended — lowest complexity, highest revenue impact.</strong> Already in the spec as "Could Have". Builds on existing Redis region data and the driver matching score. Well-defined boundaries, no new modules needed.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="ratings" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>⭐ Ratings &amp; Reviews</h3>
+      <p><strong>High value — feeds directly into the driver matching algorithm.</strong> The matching score already has a <code>driver_rating</code> input with no data source. This closes that gap and adds restaurant ratings too.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="promos" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>🎟 Promotions &amp; Discount Codes</h3>
+      <p>Also already in the spec. Connects cleanly to the payment flow. Self-contained module. Good to design before Subscription (G) since promos are a dependency for subscriber perks.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="scheduled" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>🗓 Scheduled Rides &amp; Orders</h3>
+      <p>High user-facing value. Requires a scheduling engine (Hangfire / Quartz.NET), reminder notifications, and pre-matching logic — more design surface than the others.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>💬 In-App Chat</h3>
+      <p>Natural fit on SignalR. Needed for rider↔driver and customer↔restaurant communication. Medium complexity — message persistence and read receipts add scope.</p>
+    </div>
+  </div>
+</div>

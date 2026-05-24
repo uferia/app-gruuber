@@ -1,0 +1,40 @@
+<h2>Surge Pricing — Architecture Approaches</h2>
+<p class="subtitle">All 3 approaches compute an upfront locked fare with surge baked in. The difference is where and how the multiplier is evaluated.</p>
+
+<div class="options">
+  <div class="option" data-choice="inline" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>⚡ Inline Fare Calculator with Redis Cache <span style="font-size:0.75rem;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:999px;margin-left:8px;">Recommended</span></h3>
+      <p>A <code>SurgePricingService</code> is called inline at ride/order request time. It reads surge config from a Redis-cached <code>surge_config</code> key (TTL 60s, populated from DB). It computes the active multiplier from demand/supply ratio + time-of-day rules, locks the fare, and returns it. The multiplier and locked fare are persisted on the ride/order row.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Simple — no new background workers</li><li>Fare locked at request time (price guarantee)</li><li>Redis cache keeps latency low (no DB hit per request)</li><li>Fits existing request flow cleanly</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Demand/supply ratio computed per request (lightweight but not zero cost)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="precomputed" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>🔄 Pre-computed Surge Level per Region</h3>
+      <p>A background worker runs every 30s and writes the current surge multiplier per region to Redis (<code>surge_level:{regionId}</code>). Ride/order request handlers simply read this value — no computation at request time. Fare is locked from this cached value.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Zero computation overhead at request time</li><li>Consistent multiplier across all requests within the same 30s window</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>New background worker to maintain</li><li>Surge can be up to 30s stale at time of booking</li><li>More moving parts</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="module" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>🏗 Dedicated Surge Module (Kafka-driven)</h3>
+      <p>A standalone <code>Gruuber.Surge</code> module subscribes to <code>ride_requested</code> and <code>ride_completed</code> events to maintain demand/supply counters. It publishes <code>surge_level_changed</code> events when the multiplier crosses a tier boundary. Ride handlers subscribe to the current level via Redis.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Most event-driven — fits the architecture vision</li><li>Clean domain separation</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Highest complexity — new module, new events, new consumers</li><li>Event lag could cause stale surge level at booking</li><li>Over-engineered for stepped-tier multiplier logic</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

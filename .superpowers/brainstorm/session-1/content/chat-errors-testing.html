@@ -1,0 +1,97 @@
+<h2>In-App Chat Design — Section 3: Error Handling, Observability & Testing</h2>
+<p class="subtitle">Failure modes, logging, metrics, and test strategy for Gruuber.Chat.</p>
+
+<div class="section">
+  <h3>Error Handling</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Scenario</td>
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Handling</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Message sent to read_only/closed thread</td>
+          <td style="padding:4px 8px">SignalR error response to sender: <code>THREAD_CLOSED</code></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">User not in chat_participants tries to join</td>
+          <td style="padding:4px 8px">Hub rejects connection with <code>403 Forbidden</code></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Kafka lag — thread not yet created when client connects</td>
+          <td style="padding:4px 8px">Client retries <code>GET /v1/chat/threads?context_id=</code> with backoff (max 5s)</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">SignalR client disconnects mid-conversation</td>
+          <td style="padding:4px 8px">Messages queued in DB; delivered as 'delivered' on reconnect via history endpoint</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Kafka consumer fails to create thread</td>
+          <td style="padding:4px 8px">Retry with backoff (max 5); route to <code>chat-events-dlq-{region}</code> on failure</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px">Quick reply key not found</td>
+          <td style="padding:4px 8px"><code>400 Bad Request</code> — invalid template key</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Observability</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">Log fields</strong><br>
+      &nbsp;TraceId, SpanId, RegionId, <code>ThreadId</code>, <code>ContextId</code>, <code>ContextType</code>, <code>Channel</code><br><br>
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:3px 8px;font-weight:600;color:#6366f1">Metric</td>
+          <td style="padding:3px 8px;font-weight:600;color:#6366f1">Purpose</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>chat_messages_per_trip</code></td>
+          <td style="padding:3px 8px">Avg messages sent per active thread — engagement signal</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>chat_thread_creation_lag_ms</code></td>
+          <td style="padding:3px 8px">Time from Kafka event → thread available — alert if &gt; 2s</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>chat_signalr_connections</code></td>
+          <td style="padding:3px 8px">Active ChatHub connections gauge</td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px"><code>chat_dlq_events</code></td>
+          <td style="padding:3px 8px">Failed thread creation events routed to DLQ</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Testing</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">Unit Tests (Moq)</strong><br>
+      &nbsp;· Thread creation from <code>ride_matched</code> event → correct participants and channel<br>
+      &nbsp;· Thread creation from <code>order_accepted</code> → two threads created (customer↔restaurant + driver↔restaurant)<br>
+      &nbsp;· Message to read_only thread → rejected with <code>THREAD_CLOSED</code><br>
+      &nbsp;· <code>MarkRead</code> → status updated, read_at set, sender notified<br>
+      &nbsp;· Quick reply with invalid key → <code>400 Bad Request</code><br><br>
+      <strong style="color:#6366f1">Integration Tests (Testcontainers — Postgres + Kafka + SignalR)</strong><br>
+      &nbsp;· End-to-end: <code>ride_matched</code> event → thread created → rider sends message → driver receives via SignalR<br>
+      &nbsp;· Read receipt: driver reads → sender gets double-tick notification<br>
+      &nbsp;· Thread closes 6h after completion → message send rejected<br>
+      &nbsp;· Client reconnect → history endpoint returns missed messages in order<br>
+      &nbsp;· Consumer fails 5 times → event in <code>chat-events-dlq-{region}</code><br><br>
+      <strong style="color:#6366f1">Privacy Invariant</strong><br>
+      &nbsp;· Assert: <code>chat_participants.display_name</code> never contains real name, phone, or email<br>
+      &nbsp;· Assert: user not in <code>chat_participants</code> cannot join or read thread messages
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">✅ All 3 sections approved. Ready to write the spec document?</p>

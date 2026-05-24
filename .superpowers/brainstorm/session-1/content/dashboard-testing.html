@@ -1,0 +1,49 @@
+<h2>Dashboards Design — Section 4: Testing</h2>
+<p class="subtitle">Unit, integration, and authorization test strategy for Gruuber.Analytics.</p>
+
+<div class="section">
+  <h3>Unit Tests (Moq)</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">AnalyticsConsumerService</strong><br>
+      &nbsp;· <code>ride_completed</code> event → correct delta upserted to <code>driver_stats_daily</code> and <code>admin_stats_daily</code><br>
+      &nbsp;· <code>order_delivered</code> event → correct upsert across restaurant + menu item + admin tables<br>
+      &nbsp;· Duplicate event (same <code>event_id</code>) → second upsert is skipped (idempotency)<br>
+      &nbsp;· Rolling average rating recalculation is correct<br><br>
+      <strong style="color:#6366f1">Query Handlers</strong><br>
+      &nbsp;· Weekly summary correctly sums 7 daily rows<br>
+      &nbsp;· Monthly summary correctly sums up to 31 daily rows<br>
+      &nbsp;· No data for period → returns zero-valued summary (not null/404)<br><br>
+      <strong style="color:#6366f1">Export Service</strong><br>
+      &nbsp;· CSV output matches expected columns and row count<br>
+      &nbsp;· Job status transitions: pending → processing → completed / failed
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Integration Tests (Testcontainers — Postgres + Kafka)</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      &nbsp;· Publish 5 <code>ride_completed</code> events → assert <code>driver_stats_daily</code> has correct totals<br>
+      &nbsp;· Publish <code>order_delivered</code> with 3 items → assert <code>menu_item_stats_daily</code> has 3 rows<br>
+      &nbsp;· Duplicate event replay → totals unchanged (dedup working)<br>
+      &nbsp;· Consumer failure after 5 retries → message in <code>analytics-events-dlq-{region}</code><br>
+      &nbsp;· Export job: request CSV → poll → download URL returns valid file
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Authorization Tests</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      &nbsp;· Driver A cannot access Driver B's summary (JWT <code>sub</code> mismatch → <code>403</code>)<br>
+      &nbsp;· Restaurant cannot access driver endpoints (<code>403</code>)<br>
+      &nbsp;· Admin can query any region; driver/restaurant cannot use admin endpoints (<code>403</code>)<br>
+      &nbsp;· Export download URL with expired TTL → <code>403</code> / <code>410 Gone</code>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">✅ All 4 sections approved. Ready to write the spec document?</p>

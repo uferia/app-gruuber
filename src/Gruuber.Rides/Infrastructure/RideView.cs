@@ -10,4 +10,6 @@ public class RideView
     public double Lng { get; set; }
     public int RegionId { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string? RideType { get; set; }
+    public int? PoolSlot { get; set; }
 }

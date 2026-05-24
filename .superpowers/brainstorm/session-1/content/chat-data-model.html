@@ -1,0 +1,71 @@
+<h2>In-App Chat Design — Section 1: Data Model</h2>
+<p class="subtitle">Gruuber.Chat module — fully owned schema, no dependencies on Rides/Orders tables.</p>
+
+<div class="section">
+  <h3><code>chat_threads</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> chat_threads (<br>
+      &nbsp;&nbsp;id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UUID PRIMARY KEY,<br>
+      &nbsp;&nbsp;context_id &nbsp;UUID NOT NULL, <span style="color:gray">-- ride_id or order_id</span><br>
+      &nbsp;&nbsp;context_type TEXT NOT NULL, <span style="color:gray">-- 'ride' | 'order'</span><br>
+      &nbsp;&nbsp;channel &nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL, <span style="color:gray">-- 'rider_driver' | 'customer_restaurant' | 'driver_restaurant'</span><br>
+      &nbsp;&nbsp;status &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL DEFAULT <span style="color:#10b981">'active'</span>, <span style="color:gray">-- 'active' | 'read_only' | 'closed'</span><br>
+      &nbsp;&nbsp;closes_at &nbsp;&nbsp;TIMESTAMP, <span style="color:gray">-- set to completed_at + 6h</span><br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;INT NOT NULL,<br>
+      &nbsp;&nbsp;created_at &nbsp;TIMESTAMP NOT NULL DEFAULT now()<br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3><code>chat_participants</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> chat_participants (<br>
+      &nbsp;&nbsp;thread_id &nbsp;&nbsp;UUID NOT NULL REFERENCES chat_threads(id),<br>
+      &nbsp;&nbsp;user_id &nbsp;&nbsp;&nbsp;&nbsp;UUID NOT NULL,<br>
+      &nbsp;&nbsp;role &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL, <span style="color:gray">-- 'rider' | 'driver' | 'restaurant'</span><br>
+      &nbsp;&nbsp;display_name TEXT NOT NULL, <span style="color:gray">-- anonymized: "Driver", "Rider", "Restaurant"</span><br>
+      &nbsp;&nbsp;joined_at &nbsp;&nbsp;TIMESTAMP NOT NULL DEFAULT now(),<br>
+      &nbsp;&nbsp;<span style="color:#10b981">PRIMARY KEY (thread_id, user_id)</span><br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3><code>chat_messages</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> chat_messages (<br>
+      &nbsp;&nbsp;id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UUID PRIMARY KEY,<br>
+      &nbsp;&nbsp;thread_id &nbsp;&nbsp;UUID NOT NULL REFERENCES chat_threads(id),<br>
+      &nbsp;&nbsp;sender_id &nbsp;&nbsp;UUID NOT NULL,<br>
+      &nbsp;&nbsp;message_type TEXT NOT NULL, <span style="color:gray">-- 'text' | 'quick_reply'</span><br>
+      &nbsp;&nbsp;content &nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL, <span style="color:gray">-- text body or quick_reply key</span><br>
+      &nbsp;&nbsp;status &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL DEFAULT <span style="color:#f59e0b">'sent'</span>, <span style="color:gray">-- 'sent' | 'delivered' | 'read'</span><br>
+      &nbsp;&nbsp;sent_at &nbsp;&nbsp;&nbsp;&nbsp;TIMESTAMP NOT NULL DEFAULT now(),<br>
+      &nbsp;&nbsp;read_at &nbsp;&nbsp;&nbsp;&nbsp;TIMESTAMP<br>
+      );<br><br>
+      <span style="color:#6366f1">CREATE INDEX</span> ON chat_messages (thread_id, sent_at);
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3><code>quick_reply_templates</code></h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> quick_reply_templates (<br>
+      &nbsp;&nbsp;key &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEXT PRIMARY KEY, <span style="color:gray">-- e.g. 'im_outside'</span><br>
+      &nbsp;&nbsp;display_text TEXT NOT NULL, <span style="color:gray">-- "I'm outside"</span><br>
+      &nbsp;&nbsp;applicable_roles TEXT[], <span style="color:gray">-- ['driver', 'rider', 'restaurant']</span><br>
+      &nbsp;&nbsp;is_active &nbsp;&nbsp;BOOLEAN NOT NULL DEFAULT true<br>
+      );
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this data model look right?</p>

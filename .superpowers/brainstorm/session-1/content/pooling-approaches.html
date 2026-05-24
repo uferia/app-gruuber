@@ -1,0 +1,40 @@
+<h2>Ride Pooling — Architecture Approaches</h2>
+<p class="subtitle">3 approaches for implementing live 2-rider pool matching. Pick your preferred direction.</p>
+
+<div class="options">
+  <div class="option" data-choice="variant" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>🏷 Ride Type Variant <span style="font-size:0.75rem;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:999px;margin-left:8px;">Recommended</span></h3>
+      <p>Add a <code>ride_type</code> (solo | pool) and <code>pool_slot</code> (1 | 2) to the existing <code>rides</code> table. A background pool matcher (Kafka consumer) holds a Redis sorted-set queue per region. When two riders are paired, both ride records are linked via a <code>pool_trip_id</code> FK. The driver's matching score already exists — pool matching reuses it, filtered to pool-mode drivers with an open slot.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Minimal schema change</li><li>Reuses existing matching + outbox flows</li><li>Low blast radius on existing modules</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Ride table grows wider</li><li>Slightly more complex queries for pool state</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="entity" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>🗂 Dedicated Pool Trip Entity</h3>
+      <p>Introduce a <code>pool_trips</code> table as the aggregate root (status, driver_id, region_id, version). Individual <code>rides</code> rows are children referencing <code>pool_trip_id</code>. All state transitions happen at the pool_trip level, emitting <code>pool_trip.*</code> Kafka events. Pool and solo rides are fully separated.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Clean domain separation</li><li>Pool lifecycle owned by one aggregate</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More tables + new event contracts</li><li>Read model needs updating for pool trips</li><li>Higher implementation cost</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="queue" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>⏱ Redis Pool Queue Service</h3>
+      <p>A standalone pool-matching service (could be a hosted service in the monolith) manages a Redis Sorted Set as a waiting queue per region. On each new pool request, it scans for a compatible waiting rider within geo-proximity threshold. If found, pairs them and dispatches a driver. No schema changes to <code>rides</code> — pairs are resolved before a ride is written.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Very fast matching (all in Redis)</li><li>Decoupled from DB until pair confirmed</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Redis loss = lost queue (no durability)</li><li>Complex recovery on failure</li><li>Harder to audit match history</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

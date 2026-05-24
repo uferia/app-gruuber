@@ -48,6 +48,7 @@ public static class AuthModule
             options.AddPolicy("rider", p => p.RequireRole("rider"));
             options.AddPolicy("driver", p => p.RequireRole("driver"));
             options.AddPolicy("restaurant", p => p.RequireRole("restaurant"));
+            options.AddPolicy("admin", p => p.RequireRole("admin"));
         });
 
         return services;

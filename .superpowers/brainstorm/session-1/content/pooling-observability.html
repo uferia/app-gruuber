@@ -1,0 +1,70 @@
+<h2>Ride Pooling Design — Section 4: Observability & Testing</h2>
+<p class="subtitle">Logging, metrics, and test strategy for pool rides.</p>
+
+<div class="section">
+  <h3>Structured Logging</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:2">
+      <span style="color:gray">All pool log entries include:</span><br>
+      &nbsp;&nbsp;TraceId, SpanId, RegionId, RideId, <span style="color:#10b981">PoolTripId</span>, <span style="color:#10b981">PoolSlot</span><br><br>
+      <span style="color:#f59e0b">Info</span> &nbsp;→ pool_queued, pool_matched, partial_dropoff, pool_completed<br>
+      <span style="color:#f59e0b">Warning</span> → pool_timeout (no match found), solo upgrade accepted/declined<br>
+      <span style="color:#ef4444">Error</span> &nbsp;→ Lua atomic failure, matcher consumer DLQ, double-match collision
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Key Metrics to Monitor</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Metric</td>
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Purpose</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px"><code>pool_queue_depth_{regionId}</code></td>
+          <td style="padding:4px 8px">Alert if queue backs up — signals low driver supply</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px"><code>pool_match_rate</code></td>
+          <td style="padding:4px 8px">% of pool requests successfully matched</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px"><code>pool_timeout_rate</code></td>
+          <td style="padding:4px 8px">% falling back to solo or cancelling</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px"><code>pool_match_latency_ms</code></td>
+          <td style="padding:4px 8px">Time from pool_queued → pool_matched</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px"><code>pool_detour_km</code></td>
+          <td style="padding:4px 8px">Histogram of actual detour added per trip</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Test Strategy</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">Unit Tests (Moq)</strong><br>
+      &nbsp;· PoolMatcherService: compatible match found, detour exceeded, no candidates<br>
+      &nbsp;· Fare calculation: discount applied from pool_region_rates<br>
+      &nbsp;· State machine: valid + invalid transitions (e.g. pool_queued → completed is illegal)<br><br>
+      <strong style="color:#6366f1">Integration Tests (Testcontainers)</strong><br>
+      &nbsp;· Full pool match: 2 riders request → both matched → driver assigned<br>
+      &nbsp;· Timeout flow: 1 rider queued, TTL expires → SignalR nudge → solo upgrade<br>
+      &nbsp;· Race condition: 2 matchers attempt same pair simultaneously → only one succeeds<br>
+      &nbsp;· Rider 2 cancels after match → Rider 1 continues solo<br><br>
+      <strong style="color:#6366f1">Privacy Guard</strong><br>
+      &nbsp;· Assert GET /v1/rides/{id} for Rider A never returns Rider B's pickup/dropoff coords
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">✅ All 4 sections approved. Ready to write the spec document?</p>

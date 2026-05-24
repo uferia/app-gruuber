@@ -1,0 +1,82 @@
+<h2>Dashboards Design — Section 1: Data Model</h2>
+<p class="subtitle">New Gruuber.Analytics module — pre-aggregated daily snapshot tables, Kafka-populated only.</p>
+
+<div class="section">
+  <h3>Driver Stats</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> driver_stats_daily (<br>
+      &nbsp;&nbsp;driver_id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UUID NOT NULL,<br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INT NOT NULL,<br>
+      &nbsp;&nbsp;stat_date &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATE NOT NULL,<br>
+      &nbsp;&nbsp;trips_completed &nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;trips_cancelled &nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;pool_trips &nbsp;&nbsp;&nbsp;&nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;gross_earnings &nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;bonus_earnings &nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;payout_amount &nbsp;&nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;avg_rating &nbsp;&nbsp;&nbsp;&nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;acceptance_rate NUMERIC DEFAULT 0, <span style="color:gray">-- 0.0–1.0</span><br>
+      &nbsp;&nbsp;online_minutes &nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;<span style="color:#10b981">PRIMARY KEY (driver_id, stat_date)</span><br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Restaurant Stats</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> restaurant_stats_daily (<br>
+      &nbsp;&nbsp;restaurant_id &nbsp;&nbsp;UUID NOT NULL,<br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INT NOT NULL,<br>
+      &nbsp;&nbsp;stat_date &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATE NOT NULL,<br>
+      &nbsp;&nbsp;orders_received INT DEFAULT 0,<br>
+      &nbsp;&nbsp;orders_completed INT DEFAULT 0,<br>
+      &nbsp;&nbsp;orders_cancelled INT DEFAULT 0,<br>
+      &nbsp;&nbsp;gross_revenue &nbsp;&nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;avg_prep_time_secs INT DEFAULT 0,<br>
+      &nbsp;&nbsp;avg_rating &nbsp;&nbsp;&nbsp;&nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;<span style="color:#10b981">PRIMARY KEY (restaurant_id, stat_date)</span><br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Menu Item Performance</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> menu_item_stats_daily (<br>
+      &nbsp;&nbsp;restaurant_id &nbsp;UUID NOT NULL,<br>
+      &nbsp;&nbsp;item_name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEXT NOT NULL, <span style="color:gray">-- from order_items</span><br>
+      &nbsp;&nbsp;stat_date &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATE NOT NULL,<br>
+      &nbsp;&nbsp;units_sold &nbsp;&nbsp;&nbsp;&nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;revenue &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;<span style="color:#10b981">PRIMARY KEY (restaurant_id, item_name, stat_date)</span><br>
+      );
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Admin Stats</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:1.9">
+      <span style="color:#6366f1">CREATE TABLE</span> admin_stats_daily (<br>
+      &nbsp;&nbsp;region_id &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INT NOT NULL,<br>
+      &nbsp;&nbsp;stat_date &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATE NOT NULL,<br>
+      &nbsp;&nbsp;total_rides &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;total_pool_rides &nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;total_orders &nbsp;&nbsp;&nbsp;&nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;gross_platform_revenue NUMERIC DEFAULT 0,<br>
+      &nbsp;&nbsp;active_drivers &nbsp;&nbsp;INT DEFAULT 0,<br>
+      &nbsp;&nbsp;active_restaurants INT DEFAULT 0,<br>
+      &nbsp;&nbsp;<span style="color:#10b981">PRIMARY KEY (region_id, stat_date)</span><br>
+      );
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this data model look right?</p>

@@ -1,0 +1,65 @@
+<h2>Ride Pooling Design — Section 2: Matching Flow & State Machine</h2>
+<p class="subtitle">How a pool ride request moves from creation to driver dispatch.</p>
+
+<div class="section">
+  <h3>Pool Ride Request Flow</h3>
+  <div class="mockup">
+    <div class="mockup-header">POST /v1/rides/request  { ride_type: "pool" }</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:2">
+      <span style="color:#6366f1">1.</span> Validate pool fare eligibility (pool_region_rates exists for region)<br>
+      <span style="color:#6366f1">2.</span> Create ride row (status=<span style="color:#f59e0b">pool_queued</span>, ride_type=pool, pool_slot=NULL)<br>
+      <span style="color:#6366f1">3.</span> Write <span style="color:#10b981">ride_pool_queued</span> event to outbox<br>
+      <span style="color:#6366f1">4.</span> Push rider into Redis <span style="color:#f59e0b">pool_queue:{regionId}</span> sorted set (score=timestamp)<br>
+      <span style="color:#6366f1">5.</span> Return <span style="color:#10b981">202 Accepted</span> { status: "pool_queued", match_timeout_secs }<br>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Pool Matcher (Background Service per region)</h3>
+  <div class="mockup">
+    <div class="mockup-header">PoolMatcherService — runs on Kafka consumer: ride_pool_queued</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:2">
+      <span style="color:#6366f1">On ride_pool_queued event:</span><br>
+      &nbsp;&nbsp;1. Scan pool_queue:{regionId} for oldest waiting rider<br>
+      &nbsp;&nbsp;2. Compute route detour — reject if detour &gt; max_detour_km<br>
+      &nbsp;&nbsp;3. If compatible match found:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;a. Atomically remove both from Redis queue (Lua script)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;b. Generate pool_trip_id (UUID)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;c. UPDATE both rides: pool_slot=1/2, pool_trip_id=X, status=<span style="color:#f59e0b">matched</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;d. Run driver matching score (existing algorithm, pool-capable drivers only)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;e. Write <span style="color:#10b981">ride_pool_matched</span> to outbox for both ride IDs<br>
+      &nbsp;&nbsp;4. If no match: leave in queue (TTL handles timeout expiry)
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Timeout Handling (Redis TTL Expiry)</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.82rem;line-height:2">
+      <span style="color:#6366f1">On pool_queue TTL expiry:</span><br>
+      &nbsp;&nbsp;1. Scheduled job sweeps expired entries (every 30s)<br>
+      &nbsp;&nbsp;2. Notify rider via SignalR: "No pool match found — accept solo fare?"<br>
+      &nbsp;&nbsp;3. If rider accepts: convert ride to solo, re-enter normal matching<br>
+      &nbsp;&nbsp;4. If rider declines / no response in 60s: cancel ride, status=<span style="color:#ef4444">cancelled</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Extended Ride State Machine</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.85rem;line-height:2">
+      <strong>Solo (unchanged):</strong><br>
+      <code>requested → matched → en_route → arrived → completed → cancelled</code>
+      <br><br>
+      <strong>Pool (new states in <span style="color:#6366f1">purple</span>):</strong><br>
+      <code><span style="color:#6366f1">pool_queued</span> → <span style="color:#6366f1">pool_matched</span> → matched → en_route → <span style="color:#6366f1">partial_dropoff</span> → arrived → completed → cancelled</code>
+      <br><br>
+      <span style="color:gray;font-size:0.8rem">partial_dropoff = Rider 1 has been dropped off, driver en route to Rider 2's destination</span>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this flow and state machine look right?</p>

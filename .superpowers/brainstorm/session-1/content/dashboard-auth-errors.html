@@ -1,0 +1,102 @@
+<h2>Dashboards Design — Section 3: Authorization, Error Handling & Observability</h2>
+<p class="subtitle">Access control, failure modes, logging, and metrics for the Analytics module.</p>
+
+<div class="section">
+  <h3>Authorization</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Role</td>
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Scope</td>
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Access</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px"><code>driver</code></td>
+          <td style="padding:4px 8px"><code>analytics.driver.read</code></td>
+          <td style="padding:4px 8px">Own data only — <code>driver_id</code> extracted from JWT <code>sub</code></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px"><code>restaurant</code></td>
+          <td style="padding:4px 8px"><code>analytics.restaurant.read</code></td>
+          <td style="padding:4px 8px">Own restaurant only — <code>restaurant_id</code> from JWT <code>sub</code></td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px"><code>admin</code></td>
+          <td style="padding:4px 8px"><code>analytics.admin.read</code></td>
+          <td style="padding:4px 8px">All regions — optional <code>?region_id=</code> filter</td>
+        </tr>
+      </table>
+      <p style="margin-top:0.75rem;color:#6b7280;font-size:0.8rem">Export endpoints require same scopes. Download URLs are pre-signed (short TTL) — not publicly accessible.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Error Handling</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Scenario</td>
+          <td style="padding:4px 8px;font-weight:600;color:#6366f1">Handling</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">No stats yet for period</td>
+          <td style="padding:4px 8px"><code>200 OK</code> with zero-valued summary — never <code>404</code></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Invalid date range (from &gt; to)</td>
+          <td style="padding:4px 8px"><code>400 Bad Request</code> with clear error message</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Export job_id not found</td>
+          <td style="padding:4px 8px"><code>404 Not Found</code></td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Export generation fails</td>
+          <td style="padding:4px 8px">Job status → <code>failed</code>; client retries via new export request</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:4px 8px">Kafka consumer duplicate event</td>
+          <td style="padding:4px 8px">Deduplicated via <code>processed_events</code> table check before upsert</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 8px">Consumer DLQ after 5 retries</td>
+          <td style="padding:4px 8px">Route to <code>analytics-events-dlq-{region}</code>; alert ops; stats may be temporarily understated</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Observability</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.82rem;line-height:2">
+      <strong style="color:#6366f1">Log fields</strong><br>
+      &nbsp;TraceId, SpanId, RegionId + <code>DriverId</code> or <code>RestaurantId</code> (where applicable), <code>ExportJobId</code><br><br>
+      <strong style="color:#6366f1">Key Metrics</strong><br>
+      <table style="width:100%;border-collapse:collapse;margin-top:0.25rem">
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>analytics_consumer_lag_{region}</code></td>
+          <td style="padding:3px 8px">Alert if consumer falls behind — stats will be stale</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>analytics_upsert_errors</code></td>
+          <td style="padding:3px 8px">DB upsert failure rate</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:3px 8px"><code>export_job_duration_ms</code></td>
+          <td style="padding:3px 8px">P95 target &lt; 5s for typical date ranges</td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px"><code>export_job_failures</code></td>
+          <td style="padding:3px 8px">Failed CSV/PDF generation rate</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this section look good? One more section to go (Testing).</p>

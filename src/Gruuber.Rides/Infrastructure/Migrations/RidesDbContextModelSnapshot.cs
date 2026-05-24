@@ -22,23 +22,63 @@ namespace Gruuber.Rides.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Gruuber.Rides.Domain.PoolRegionRate", b =>
+                {
+                    b.Property<int>("RegionId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("DiscountPct")
+                        .HasColumnType("numeric(4,3)");
+
+                    b.Property<int>("MatchTimeoutSecs")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MaxDetourKm")
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RegionId");
+
+                    b.ToTable("pool_region_rates", (string)null);
+                });
+
             modelBuilder.Entity("Gruuber.Rides.Domain.Ride", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("BaseFare")
+                        .HasColumnType("numeric(10,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double?>("DestLat")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DestLng")
+                        .HasColumnType("double precision");
+
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("FinalFare")
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<double>("PickupLat")
                         .HasColumnType("double precision");
 
                     b.Property<double>("PickupLng")
                         .HasColumnType("double precision");
+
+                    b.Property<int?>("PoolSlot")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("PoolTripId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("RegionId")
                         .HasColumnType("integer");
@@ -55,6 +95,15 @@ namespace Gruuber.Rides.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal>("SurgeMultiplier")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(6,2)")
+                        .HasDefaultValue(1.0m);
+
+                    b.Property<string>("SurgeReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
@@ -64,6 +113,67 @@ namespace Gruuber.Rides.Infrastructure.Migrations
                     b.HasIndex("Status", "RegionId");
 
                     b.ToTable("rides", (string)null);
+                });
+
+            modelBuilder.Entity("Gruuber.Rides.Domain.SurgePricingConfig", b =>
+                {
+                    b.Property<int>("RegionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RideType")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("DemandRatioThreshold")
+                        .HasColumnType("numeric(4,3)");
+
+                    b.Property<decimal>("MaxMultiplier")
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<decimal>("Multiplier")
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RegionId", "RideType", "DemandRatioThreshold");
+
+                    b.ToTable("surge_config", (string)null);
+                });
+
+            modelBuilder.Entity("Gruuber.Rides.Domain.SurgeTimeRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("DayOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Multiplier")
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<int>("RegionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RideType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("surge_time_rules", (string)null);
                 });
 
             modelBuilder.Entity("Gruuber.Rides.Infrastructure.RideOutboxEntry", b =>
@@ -117,8 +227,14 @@ namespace Gruuber.Rides.Infrastructure.Migrations
                     b.Property<double>("Lng")
                         .HasColumnType("double precision");
 
+                    b.Property<int?>("PoolSlot")
+                        .HasColumnType("integer");
+
                     b.Property<int>("RegionId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("RideType")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()

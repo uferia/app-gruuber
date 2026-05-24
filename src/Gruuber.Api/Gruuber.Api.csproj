@@ -7,6 +7,8 @@
     <ProjectReference Include="..\Gruuber.Orders\Gruuber.Orders.csproj" />
     <ProjectReference Include="..\Gruuber.Payments\Gruuber.Payments.csproj" />
     <ProjectReference Include="..\Gruuber.Tracking\Gruuber.Tracking.csproj" />
+    <ProjectReference Include="..\Gruuber.Analytics\Gruuber.Analytics.csproj" />
+    <ProjectReference Include="..\Gruuber.Chat\Gruuber.Chat.csproj" />
   </ItemGroup>
 
   <ItemGroup>

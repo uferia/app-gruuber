@@ -28,11 +28,17 @@ namespace Gruuber.Orders.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("BaseFare")
+                        .HasColumnType("numeric(10,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("FinalFare")
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<int>("RegionId")
                         .HasColumnType("integer");
@@ -49,6 +55,15 @@ namespace Gruuber.Orders.Infrastructure.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<decimal>("SurgeMultiplier")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(6,2)")
+                        .HasDefaultValue(1.0m);
+
+                    b.Property<string>("SurgeReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 4)

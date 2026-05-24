@@ -1,0 +1,40 @@
+<h2>Driver & Restaurant Dashboards — Architecture Approaches</h2>
+<p class="subtitle">All 3 approaches use a dedicated Gruuber.Analytics module with pre-aggregated Kafka-driven read models. The difference is in how aggregation snapshots are structured.</p>
+
+<div class="options">
+  <div class="option" data-choice="timebucket" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>📅 Time-Bucketed Snapshot Tables <span style="font-size:0.75rem;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:999px;margin-left:8px;">Recommended</span></h3>
+      <p>Three dedicated tables: <code>driver_stats_daily</code>, <code>restaurant_stats_daily</code>, <code>admin_stats_daily</code> — one row per entity per day. Kafka consumers upsert into these on every <code>ride_completed</code> / <code>order_delivered</code> event. Weekly and monthly views are derived at query time by summing daily rows. Export jobs read directly from these tables.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Fits CQRS perfectly — Kafka consumers own writes</li><li>Simple queries (SUM over date range)</li><li>Easy to backfill on schema change</li><li>No extra infrastructure</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Monthly summaries require summing up to 31 rows</li><li>Menu-item-level stats need a 4th table</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="materialized" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>🔄 PostgreSQL Materialized Views</h3>
+      <p>Raw events land in an <code>analytics_events</code> table via Kafka consumers. PostgreSQL materialized views (<code>REFRESH MATERIALIZED VIEW CONCURRENTLY</code>) compute daily/weekly/monthly summaries on a schedule (e.g. every 5 min). Dashboard queries hit the materialized views directly.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Flexible — change view logic without Kafka consumer changes</li><li>Rich SQL aggregations available</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Refresh lag (up to 5 min stale data)</li><li>Materialized views can lock under high write load</li><li>More complex ops</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>⚡ Hybrid: Daily Snapshots + Rolling Cache</h3>
+      <p>Same daily snapshot tables as Option A, but a Redis cache layer stores the current-day running totals (updated in real-time per event). Dashboard queries merge Redis (today) + Postgres (historical days). Gives near-real-time accuracy for the current day.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Most responsive — today's data is always fresh</li><li>Historical data stays in Postgres</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Redis + Postgres merge logic adds complexity</li><li>Redis loss means today's totals reset (until Kafka replay)</li><li>Overkill for daily/weekly/monthly-only requirement</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

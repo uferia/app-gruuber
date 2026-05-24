@@ -10,6 +10,10 @@ public class Order : EntityBase
     public Guid? DriverId { get; private set; }
     public OrderStatus Status { get; private set; } = OrderStatus.Placed;
     public decimal TotalAmount { get; private set; }
+    public decimal? BaseFare { get; private set; }
+    public decimal SurgeMultiplier { get; private set; } = 1.0m;
+    public decimal? FinalFare { get; private set; }
+    public string? SurgeReason { get; private set; }
     private readonly List<OrderItem> _items = new();
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
 
@@ -55,5 +59,13 @@ public class Order : EntityBase
         DriverId = driverId;
         Version++;
         return true;
+    }
+
+    public void ApplySurge(decimal baseFare, decimal multiplier, string? reason)
+    {
+        BaseFare = baseFare;
+        SurgeMultiplier = multiplier;
+        FinalFare = baseFare * multiplier;
+        SurgeReason = reason;
     }
 }

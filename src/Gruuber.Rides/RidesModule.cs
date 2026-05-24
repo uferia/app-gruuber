@@ -1,3 +1,4 @@
+using Gruuber.Rides.Application;
 using Gruuber.Rides.Application.Commands;
 using Gruuber.Rides.Application.Queries;
 using Gruuber.Rides.Infrastructure;
@@ -19,6 +20,9 @@ public static class RidesModule
         services.AddScoped<MatchDriverHandler>();
         services.AddScoped<GetRideStatusHandler>();
         services.AddScoped<TransitionRideHandler>();
+        services.AddScoped<AcceptSoloUpgradeHandler>();
+        services.AddHostedService<PoolMatcherService>();
+        services.AddHostedService<PoolTimeoutWorker>();
 
         return services;
     }

@@ -1,6 +1,10 @@
+using Gruuber.Analytics;
 using Gruuber.Api.Hubs;
 using Gruuber.Api.Infrastructure;
+using Gruuber.SharedKernel.Pricing;
 using Gruuber.Api.Infrastructure.Kafka;using Gruuber.Auth;
+using Gruuber.Chat;
+using Gruuber.Chat.Hubs;
 using Gruuber.Orders;
 using Gruuber.Payments;
 using Gruuber.Rides;
@@ -39,12 +43,17 @@ builder.Services.AddRidesModule(builder.Configuration);
 builder.Services.AddOrdersModule(builder.Configuration);
 builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
+builder.Services.AddAnalyticsModule(builder.Configuration);
+builder.Services.AddChatModule(builder.Configuration);
 
 // SignalR broadcaster (bridges Tracking module to SignalR hub)
 builder.Services.AddScoped<ILocationBroadcaster, SignalRLocationBroadcaster>();
 
 // Driver scoring (bridges Rides module with Tracking/GEO)
 builder.Services.AddScoped<IDriverScoringService, DefaultDriverScoringService>();
+
+// Surge pricing
+builder.Services.AddScoped<ISurgePricingService, SurgePricingService>();
 
 // SignalR
 builder.Services.AddSignalR();
@@ -154,6 +163,7 @@ app.MapHealthChecks("/health/readiness", new HealthCheckOptions
 
 app.MapControllers();
 app.MapHub<LocationHub>("/hubs/location");
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapReverseProxy();
 
 app.Run();

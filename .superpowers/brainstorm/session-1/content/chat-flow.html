@@ -1,0 +1,59 @@
+<h2>In-App Chat Design — Section 2: Thread Lifecycle & SignalR Flow</h2>
+<p class="subtitle">How threads are created, how messages flow via ChatHub, and how threads close.</p>
+
+<div class="section">
+  <h3>Thread Creation (Kafka-driven)</h3>
+  <div class="mockup">
+    <div class="mockup-header">ChatThreadConsumer — listens to ride/order events</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#f59e0b">On ride_matched</span> → Create thread (context=rideId, channel='rider_driver')<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Add participants: rider (display="Rider"), driver (display="Driver")<br><br>
+      <span style="color:#f59e0b">On order_accepted</span> → Create thread (context=orderId, channel='customer_restaurant')<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Create thread (context=orderId, channel='driver_restaurant')<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Add participants per channel<br><br>
+      <span style="color:#f59e0b">On ride_completed / order_delivered</span> → Set thread.closes_at = now() + 6h<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Emit <span style="color:#10b981">chat_thread_closing</span> via SignalR to participants<br><br>
+      <span style="color:gray">Scheduled sweep job (every 5 min): mark threads past closes_at as 'read_only'</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>ChatHub (SignalR) — Message Flow</h3>
+  <div class="mockup">
+    <div class="mockup-header">Gruuber.Chat owns a dedicated ChatHub — separate from TrackingHub</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">Client connects:</span> JoinThread(threadId)<br>
+      &nbsp;&nbsp;→ Validate JWT: user must be in chat_participants for this thread<br>
+      &nbsp;&nbsp;→ Add to SignalR group: <span style="color:#f59e0b">chat:{threadId}</span><br>
+      &nbsp;&nbsp;→ Mark any unread messages as 'delivered'<br><br>
+      <span style="color:#6366f1">Client sends message:</span> SendMessage(threadId, content, messageType)<br>
+      &nbsp;&nbsp;→ Validate thread is 'active' (reject if 'read_only' or 'closed')<br>
+      &nbsp;&nbsp;→ Persist to chat_messages (status='sent')<br>
+      &nbsp;&nbsp;→ Broadcast to group chat:{threadId}: ReceiveMessage(message)<br>
+      &nbsp;&nbsp;→ Update status='delivered' for online recipients<br><br>
+      <span style="color:#6366f1">Recipient opens message:</span> MarkRead(messageId)<br>
+      &nbsp;&nbsp;→ Update chat_messages.status='read', read_at=now()<br>
+      &nbsp;&nbsp;→ Notify sender via SignalR: MessageRead(messageId)<br>
+      &nbsp;&nbsp;<span style="color:gray">→ Single tick = 'sent', Double tick = 'read'</span><br><br>
+      <span style="color:#6366f1">Redis backplane:</span> fan-out works across all Gruuber instances<br>
+      <span style="color:gray">(same Redis already used for TrackingHub backplane)</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>REST API (for history + quick replies)</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;font-size:0.81rem;line-height:2">
+      <span style="color:#6366f1">GET</span> /v1/chat/threads?context_id={rideOrOrderId}<br>
+      <span style="color:gray">&nbsp;&nbsp;→ Returns thread(s) the caller participates in for this context</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/chat/threads/{threadId}/messages?before=&amp;limit=20<br>
+      <span style="color:gray">&nbsp;&nbsp;→ Paginated history (cursor-based, sorted by sent_at desc)</span><br><br>
+      <span style="color:#6366f1">GET</span> /v1/chat/quick-replies?role=driver|rider|restaurant<br>
+      <span style="color:gray">&nbsp;&nbsp;→ Returns active templates filtered by caller's role</span>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem">Does this flow look right?</p>
