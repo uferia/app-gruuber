@@ -240,3 +240,72 @@ Re-send the same request with `"expectedVersion": 1` after a successful transiti
 |---|---|
 | `GET /health` | Liveness — always returns `200` if the process is up |
 | `GET /health/readiness` | Readiness — returns `503` if Redis or Postgres is unreachable |
+
+---
+
+## Automated Unit Tests
+
+### Test Framework — MSTest
+
+Design-pattern unit tests live in `tests/Gruuber.Tests/Unit/Patterns/` and use **MSTest**
+(`Microsoft.VisualStudio.TestTools.UnitTesting`). All tests follow the **Arrange → Act → Assert** structure.
+
+```csharp
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace Gruuber.Tests.Unit.Patterns;
+
+[TestClass] // Marks the class so the test runner discovers it
+public class ExampleTests
+{
+    [TestMethod] // Marks the method as an executable test case
+    public void MethodName_Scenario_ExpectedOutcome()
+    {
+        // 1. Arrange — set up objects and state
+        var builder = new RideBuilder().ForRider(Guid.NewGuid()).InRegion(1).FromPickup(0, 0);
+
+        // 2. Act — exercise the code under test
+        var ride = builder.Build();
+
+        // 3. Assert — verify the outcome
+        Assert.AreEqual(RideStatus.Requested, ride.Status);
+    }
+}
+```
+
+### Running the pattern tests
+
+```bash
+# Run only design-pattern tests
+dotnet test tests/Gruuber.Tests --filter "FullyQualifiedName~Gruuber.Tests.Unit.Patterns"
+
+# Run all tests
+dotnet test tests/Gruuber.Tests
+```
+
+### Test coverage per pattern
+
+| File | Pattern | Tests |
+|---|---|---|
+| [`ResultStaticFactoryTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/ResultStaticFactoryTests.cs) | Static Factory Method | `Result<T>.Ok/Fail`, `ApplicationResult<T>` factories (200, 202, 400, 409, 500) |
+| [`BuilderTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/BuilderTests.cs) | Builder | `RideBuilder` (solo, pool, fare, guards), `OrderBuilder` (items, totals, guards) |
+| [`AbstractFactoryTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/AbstractFactoryTests.cs) | Abstract Factory | `RideOutboxFactory` and `OrderOutboxFactory` — event type keys, JSON payloads |
+| [`StateMachineTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/StateMachineTests.cs) | State | Ride and Order state objects — legal/illegal transitions, terminal states, factory round-trip |
+| [`SpecificationTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/SpecificationTests.cs) | Specification | `And/Or/Not` composites, `DriverMatchEligibilitySpecification`, `OrderEligibilitySpecification` |
+| [`MementoTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/MementoTests.cs) | Memento | `Ride.CaptureSnapshot` / `RestoreFromSnapshot`, `Order` equivalents, independence of snapshots |
+| [`UnitOfWorkTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/UnitOfWorkTests.cs) | Unit of Work | `RidesUnitOfWork` and `OrdersUnitOfWork` — atomic commits, typed DbSet access, guards |
+| [`PipelineBehaviorTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/PipelineBehaviorTests.cs) | Decorator (MediatR) | `LoggingBehavior`, `ValidationBehavior`, `ErrorHandlingBehavior`, chained pipeline |
+| [`MultitonTests.cs`](../tests/Gruuber.Tests/Unit/Patterns/MultitonTests.cs) | Multiton | `RegionedRedisDatabaseRegistry`, `RegionedKafkaProducerRegistry` — key isolation, `All` dictionary |
+
+### MSTest assertion reference
+
+| Assertion | Purpose |
+|---|---|
+| `Assert.AreEqual(expected, actual)` | Value equality |
+| `Assert.AreSame(expected, actual)` | Reference equality (same object instance) |
+| `Assert.IsTrue(condition)` / `Assert.IsFalse(condition)` | Boolean checks |
+| `Assert.IsNull(obj)` / `Assert.IsNotNull(obj)` | Null checks |
+| `Assert.IsInstanceOfType(obj, typeof(T))` | Type checks |
+| `Assert.ThrowsExceptionAsync<T>(action)` | Async exception assertion |
+| `[ExpectedException(typeof(T))]` attribute | Synchronous exception assertion |
+| `Assert.AreEqual(expected, actual, delta)` | Floating-point equality with tolerance |

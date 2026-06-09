@@ -2,7 +2,7 @@ using Gruuber.SharedKernel.Domain;
 
 namespace Gruuber.Rides.Domain;
 
-public class Ride : EntityBase
+public class Ride : EntityBase, ISnapshotOriginator<RideSnapshot>
 {
     public Guid RiderId { get; private set; }
     public Guid? DriverId { get; private set; }
@@ -142,5 +142,39 @@ public class Ride : EntityBase
         if (Status != RideStatus.PoolQueued) return;
         Status = RideStatus.Cancelled;
         Version++;
+    }
+
+    // ── Memento (ISnapshotOriginator) ─────────────────────────────────────────
+
+    public RideSnapshot CaptureSnapshot() => new()
+    {
+        EntityId        = Id,
+        Version         = Version,
+        CapturedAt      = DateTime.UtcNow,
+        RiderId         = RiderId,
+        DriverId        = DriverId,
+        Status          = Status.ToString(),
+        RideType        = RideType,
+        PickupLat       = PickupLat,
+        PickupLng       = PickupLng,
+        DestLat         = DestLat,
+        DestLng         = DestLng,
+        FinalFare       = FinalFare,
+        SurgeMultiplier = SurgeMultiplier,
+        RegionId        = RegionId
+    };
+
+    public void RestoreFromSnapshot(RideSnapshot snapshot)
+    {
+        DriverId        = snapshot.DriverId;
+        Status          = Enum.Parse<RideStatus>(snapshot.Status);
+        RideType        = snapshot.RideType;
+        PickupLat       = snapshot.PickupLat;
+        PickupLng       = snapshot.PickupLng;
+        DestLat         = snapshot.DestLat;
+        DestLng         = snapshot.DestLng;
+        FinalFare       = snapshot.FinalFare;
+        SurgeMultiplier = snapshot.SurgeMultiplier;
+        Version         = snapshot.Version;
     }
 }

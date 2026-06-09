@@ -14,6 +14,10 @@ public class Result<T>
 
     public static Result<T> Failure(string errorCode, string errorMessage) =>
         new() { IsSuccess = false, ErrorCode = errorCode, ErrorMessage = errorMessage };
+
+    // Static Factory Method aliases (Pattern 27)
+    public static Result<T> Ok(T value) => Success(value);
+    public static Result<T> Fail(string errorCode, string errorMessage) => Failure(errorCode, errorMessage);
 }
 
 public class ApplicationResult<T>

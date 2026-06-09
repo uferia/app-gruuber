@@ -1,11 +1,37 @@
 using System.Text.Json;
 using Gruuber.Rides.Domain;
 using Gruuber.Rides.Infrastructure;
+using Gruuber.SharedKernel.Messaging;
 
 namespace Gruuber.Rides.Application;
 
-public sealed class RideOutboxFactory
+/// <summary>
+/// Abstract Factory (concrete) — builds ride-domain outbox entries.
+/// Implements IEventMessageFactory for the three generic lifecycle events,
+/// plus ride-specific overloads for richer payloads.
+/// </summary>
+public sealed class RideOutboxFactory : IEventMessageFactory<RideOutboxEntry>
 {
+    // --- IEventMessageFactory<RideOutboxEntry> ---
+
+    public RideOutboxEntry CreateRequested(int regionId, Guid entityId, object payload) =>
+        Build(regionId, payload);
+
+    public RideOutboxEntry CreateStatusChanged(int regionId, Guid entityId, string newStatus, Guid actorId) =>
+        CreateRideStatusChanged(regionId, entityId, newStatus, actorId);
+
+    public RideOutboxEntry CreateFailed(int regionId, Guid entityId, string reason) =>
+        Build(regionId, new
+        {
+            EventName = "ride_failed",
+            RideId = entityId,
+            RegionId = regionId,
+            Reason = reason,
+            OccurredAt = DateTime.UtcNow
+        });
+
+    // --- Ride-specific factory methods ---
+
     public RideOutboxEntry CreateRideRequested(int regionId, Guid rideId, Guid riderId,
         double pickupLat, double pickupLng, decimal surgeMultiplier, decimal? finalFare) =>
         Build(regionId, new

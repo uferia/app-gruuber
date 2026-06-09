@@ -2,7 +2,7 @@ using Gruuber.SharedKernel.Domain;
 
 namespace Gruuber.Orders.Domain;
 
-public class Order : EntityBase
+public class Order : EntityBase, ISnapshotOriginator<OrderSnapshot>
 {
     public Guid RiderId { get; private set; }
     public Guid RestaurantId { get; private set; }
@@ -67,5 +67,33 @@ public class Order : EntityBase
         SurgeMultiplier = multiplier;
         FinalFare = baseFare * multiplier;
         SurgeReason = reason;
+    }
+
+    // ── Memento (ISnapshotOriginator) ─────────────────────────────────────────
+
+    public OrderSnapshot CaptureSnapshot() => new()
+    {
+        EntityId        = Id,
+        Version         = Version,
+        CapturedAt      = DateTime.UtcNow,
+        RiderId         = RiderId,
+        RestaurantId    = RestaurantId,
+        RideId          = RideId,
+        DriverId        = DriverId,
+        Status          = Status.ToString(),
+        TotalAmount     = TotalAmount,
+        FinalFare       = FinalFare,
+        SurgeMultiplier = SurgeMultiplier,
+        RegionId        = RegionId
+    };
+
+    public void RestoreFromSnapshot(OrderSnapshot snapshot)
+    {
+        DriverId        = snapshot.DriverId;
+        Status          = Enum.Parse<OrderStatus>(snapshot.Status);
+        TotalAmount     = snapshot.TotalAmount;
+        FinalFare       = snapshot.FinalFare;
+        SurgeMultiplier = snapshot.SurgeMultiplier;
+        Version         = snapshot.Version;
     }
 }

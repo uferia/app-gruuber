@@ -11,12 +11,12 @@
 |---|---------|---------|--------|-----------------|
 | 1 | **Singleton** | Ensure a class has only one instance | ✅ | `AddSingleton` DI registrations for `IKafkaProducer`, `ICurrentUserContext`, Redis, etc. |
 | 2 | **Factory Method** | Define an interface for creating objects | ✅ | `RideOutboxFactory.cs` creates outbox messages per event type |
-| 3 | **Abstract Factory** | Create families of related objects | ❌ | No `IEventMessageFactory` or region-scoped context factory families — see [issue](#) |
-| 4 | **Builder** | Separate construction of complex objects from representation | ❌ | No builder for `Ride` / `Order` aggregates with optional fields — see [issue](#) |
+| 3 | **Abstract Factory** | Create families of related objects | ✅ | `IEventMessageFactory<TOutboxEntry>` in SharedKernel; `RideOutboxFactory` and `OrderOutboxFactory` implement it to produce region-scoped outbox entries |
+| 4 | **Builder** | Separate construction of complex objects from representation | ✅ | `RideBuilder` (`Gruuber.Rides.Domain`) and `OrderBuilder` (`Gruuber.Orders.Domain`) — fluent API covering all optional fields with validation guards |
 | 5 | **Prototype** | Create new objects by cloning existing ones | N/A | No cloning use-case identified |
 | 6 | **Object Pool** | Reuse expensive objects instead of creating new | ⚠️ | Kafka/Redis libraries manage pools internally; no explicit wrapper |
 | 7 | **Lazy Initialization** | Delay object creation until needed | ⚠️ | Not explicitly applied; could benefit expensive per-region service init |
-| 27 | **Static Factory Method** | Provide object creation via static method | ❌ | `Result<T>` has no `Result.Ok()` / `Result.Fail()` static helpers — see [issue](#) |
+| 27 | **Static Factory Method** | Provide object creation via static method | ✅ | `Result<T>.Ok()` / `Result<T>.Fail()` aliases added in `Result.cs`; complement existing `Success()` / `Failure()` |
 
 ---
 
@@ -28,7 +28,7 @@
 | 29 | **Adapter (Class)** | Use inheritance to adapt incompatible interfaces | N/A | Composition preferred in C# |
 | 9 | **Bridge** | Decouple abstraction from implementation | ✅ | `IKafkaProducer` / `KafkaProducer`; `IOutboxPublisher` / `OutboxWorker` |
 | 10 | **Composite** | Compose objects into tree structures (part-whole) | ✅ | `Order` contains `OrderItem[]`; `SurgePricingConfig` contains `SurgeTimeRule[]` |
-| 11 / 30 | **Decorator** | Add responsibilities to objects dynamically | ⚠️ | ASP.NET middleware pipeline is decorator-like; **MediatR Pipeline Behaviors** (logging, validation) are not yet wired — see [issue](#) |
+| 11 / 30 | **Decorator** | Add responsibilities to objects dynamically | ✅ | ASP.NET middleware pipeline is decorator-like; **MediatR Pipeline Behaviors** wired: `LoggingBehavior`, `ValidationBehavior`, `ErrorHandlingBehavior` in `SharedKernel/Messaging/Pipeline/` |
 | 12 / 31 | **Facade** | Simplified interface to a complex subsystem | ✅ | `RideRequestCoordinator`, `DriverMatchCoordinator`, `PoolMatchCoordinator`, `*Module.cs` registration classes |
 | 13 | **Flyweight** | Share objects to support large numbers efficiently | N/A | No high-cardinality shared object scenario identified |
 | 14 | **Proxy** | Surrogate or placeholder for another object | ✅ | `RedisRateLimiterMiddleware` is a proxy gate; YARP is a reverse proxy for JWT routing |
@@ -45,10 +45,10 @@
 | 17 | **Command** | Encapsulate a request as an object | ✅ | MediatR: `RequestRideHandler`, `MatchDriverHandler`, `TransitionRideHandler`, `AcceptSoloUpgradeHandler` |
 | 18 | **Iterator** | Access elements of a collection sequentially | ✅ | C# `IEnumerable<T>` / LINQ throughout |
 | 19 | **Mediator** | Centralize complex communication between objects | ✅ | **MediatR** library wired in all modules |
-| 20 | **Memento** | Capture and restore an object's state | ❌ | No ride/order state snapshots or audit trail — see [issue](#) |
-| 21 | **State** | Object changes behaviour when state changes | ⚠️ | `RideStatus` / `OrderStatus` are enums; transition guards exist in `Ride.cs` but no formal State objects with encapsulated behaviour — see [issue](#) |
+| 20 | **Memento** | Capture and restore an object's state | ✅ | `ISnapshot<TId>` / `ISnapshotOriginator<T>` / `ISnapshotRepository<T,TId>` in SharedKernel; `RideSnapshot` and `OrderSnapshot` records; `Ride` and `Order` implement `ISnapshotOriginator` |
+| 21 | **State** | Object changes behaviour when state changes | ✅ | `IRideState` / `RideStateBase` / concrete state classes (`RequestedState`, `MatchedState`, …) in `Gruuber.Rides.Domain.States`; `IOrderState` / `OrderStateBase` in `Gruuber.Orders.Domain.States`; `RideStateFactory` / `OrderStateFactory` enforce legal transitions |
 | 22 | **Template Method** | Skeleton of an algorithm in a base method | ⚠️ | `IExponentialBackoff` defines the interface; concrete `ExponentialBackoff.cs` exists but no abstract base class enforcing the skeleton |
-| 32 | **Filter / Criteria** | Select objects that meet certain criteria | ⚠️ | Driver scoring filters candidates but no formal **Specification** objects — see [issue](#) |
+| 32 | **Filter / Criteria** | Select objects that meet certain criteria | ✅ | `ISpecification<T>` + `AndSpecification`, `OrSpecification`, `NotSpecification` composites in SharedKernel; `DriverMatchEligibilitySpecification` (radius, rating, availability) in Rides; `OrderEligibilitySpecification` (restaurant open, items, min basket) in Orders |
 
 ---
 
@@ -82,7 +82,7 @@
 
 | # | Pattern | Purpose | Status | Evidence / Notes |
 |---|---------|---------|--------|-----------------|
-| 23 | **Multiton** | Multiple singletons keyed by identifier | ❌ | No region-scoped Redis/Kafka client registry — see [issue](#) |
+| 23 | **Multiton** | Multiple singletons keyed by identifier | ✅ | `IRegionClientRegistry<TClient>` in SharedKernel; `RegionedRedisDatabaseRegistry` (keyed `IDatabase` per region) and `RegionedKafkaProducerRegistry` (keyed `IKafkaProducer` per region) in `Gruuber.Api.Infrastructure` |
 | 24 / 25 | **Factory Object / Object Factory** | Centralise object creation | ✅ | `RideOutboxFactory`; DI container acts as object factory |
 | 26 | **Parameterized Constructor** | Create objects with different parameters | ✅ | Standard C# — all domain entities use constructor injection |
 | 33 | **Private Class Data** | Restrict access to class data | ✅ | C# `private`/`init`-only properties on entities |
@@ -91,7 +91,7 @@
 | 49 | **Inversion of Control** | Transfer control of object creation | ✅ | DI container + interfaces in every module |
 | 50 | **Service Locator** | Centralised registry to locate services | N/A | Anti-pattern — intentionally avoided in favour of DI |
 | 51 | **Repository** | Abstract data access logic | ✅ | `IRideRepository` defined; other modules rely on EF Core directly |
-| 52 | **Unit of Work** | Maintain a list of objects and coordinate changes | ⚠️ | EF Core `DbContext` acts as implicit UoW; no explicit `IUnitOfWork<T>` interface — see [issue](#) |
+| 52 | **Unit of Work** | Maintain a list of objects and coordinate changes | ✅ | `IUnitOfWork` interface in SharedKernel; `RidesUnitOfWork` wraps `RidesDbContext` + outbox; `OrdersUnitOfWork` wraps `OrdersDbContext` + outbox — guarantees atomic commit of domain writes and events |
 | 53 | **DAO** | Encapsulate data access logic | ✅ | Repository pattern covers this |
 | 54 | **Business Delegate** | Delegate business logic to appropriate services | ⚠️ | Coordinator classes partially serve this role; no explicit delegate abstraction |
 
@@ -101,18 +101,18 @@
 
 | Status | Count |
 |--------|-------|
-| ✅ Applied | 26 |
-| ⚠️ Partial | 12 |
-| ❌ Missing (applicable) | 7 |
+| ✅ Applied | 35 |
+| ⚠️ Partial | 9 |
+| ❌ Missing (applicable) | 0 |
 | N/A | 9 |
 
-### Open Tasks (Missing Patterns)
-- [ ] Abstract Factory — Kafka event message family factories
-- [ ] Builder — Ride / Order aggregate builders
-- [ ] Static Factory Method — `Result<T>.Ok()` / `Result<T>.Fail()` helpers
-- [ ] Decorator (MediatR Pipeline Behaviors) — logging, validation, error handling
-- [ ] Memento — Ride/Order state snapshot & audit trail
-- [ ] State (formal) — Ride & Order state machines with behaviour encapsulation
-- [ ] Specification (Filter/Criteria) — domain specs for driver matching & order eligibility
-- [ ] Multiton — region-scoped Redis/Kafka client registry
-- [ ] Unit of Work (explicit interface) — `IUnitOfWork<TContext>` wrapping DbContext + outbox
+### Implemented (previously missing)
+- [x] Abstract Factory — `IEventMessageFactory<TOutboxEntry>`, `RideOutboxFactory`, `OrderOutboxFactory`
+- [x] Builder — `RideBuilder`, `OrderBuilder`
+- [x] Static Factory Method — `Result<T>.Ok()` / `Result<T>.Fail()`
+- [x] Decorator (MediatR Pipeline Behaviors) — `LoggingBehavior`, `ValidationBehavior`, `ErrorHandlingBehavior`
+- [x] Memento — `ISnapshot<TId>`, `ISnapshotOriginator<T>`, `RideSnapshot`, `OrderSnapshot`
+- [x] State (formal) — `IRideState`/`IOrderState` with concrete states and `*StateFactory`
+- [x] Specification (Filter/Criteria) — `ISpecification<T>` composites, `DriverMatchEligibilitySpecification`, `OrderEligibilitySpecification`
+- [x] Multiton — `IRegionClientRegistry<T>`, `RegionedRedisDatabaseRegistry`, `RegionedKafkaProducerRegistry`
+- [x] Unit of Work (explicit interface) — `IUnitOfWork`, `RidesUnitOfWork`, `OrdersUnitOfWork`
