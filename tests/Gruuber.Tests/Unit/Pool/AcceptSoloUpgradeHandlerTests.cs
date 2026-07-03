@@ -3,10 +3,12 @@ using Gruuber.Rides.Domain;
 using Gruuber.Rides.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Pool;
 
+[TestClass]
 public class AcceptSoloUpgradeHandlerTests
 {
     private static RidesDbContext CreateInMemoryDb()
@@ -18,7 +20,7 @@ public class AcceptSoloUpgradeHandlerTests
         return new RidesDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_TransitionsToRequested_AndEmitsOutboxEvent()
     {
         await using var db = CreateInMemoryDb();
@@ -31,29 +33,29 @@ public class AcceptSoloUpgradeHandlerTests
 
         var result = await handler.HandleAsync(cmd);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(202, result.StatusCode);
+        result.IsSuccess.Should().BeTrue();
+        result.StatusCode.Should().Be(202);
 
         var updated = await db.Rides.FindAsync(ride.Id);
-        Assert.Equal(RideStatus.Requested, updated!.Status);
-        Assert.Equal("solo", updated.RideType);
+        updated!.Status.Should().Be(RideStatus.Requested);
+        updated.RideType.Should().Be("solo");
 
         var outbox = await db.Set<RideOutboxEntry>().SingleAsync();
-        Assert.Contains("ride_pool_upgraded", outbox.Payload);
+        outbox.Payload.Should().Contain("ride_pool_upgraded");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_Returns404_WhenRideNotFound()
     {
         await using var db = CreateInMemoryDb();
         var handler = new AcceptSoloUpgradeHandler(db, NullLogger<AcceptSoloUpgradeHandler>.Instance);
         var result = await handler.HandleAsync(new AcceptSoloUpgradeCommand(Guid.NewGuid(), 1, Guid.NewGuid(), 1));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(404, result.StatusCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_Returns409_OnVersionMismatch()
     {
         await using var db = CreateInMemoryDb();
@@ -65,12 +67,12 @@ public class AcceptSoloUpgradeHandlerTests
         var result = await handler.HandleAsync(
             new AcceptSoloUpgradeCommand(ride.Id, ExpectedVersion: 99, ride.RiderId, RegionId: 1));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(409, result.StatusCode);
-        Assert.Equal("RESOURCE_CONFLICTED", result.ErrorCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.ErrorCode.Should().Be("RESOURCE_CONFLICTED");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_Returns403_WhenRiderDoesNotOwnRide()
     {
         await using var db = CreateInMemoryDb();
@@ -82,7 +84,7 @@ public class AcceptSoloUpgradeHandlerTests
         var result = await handler.HandleAsync(
             new AcceptSoloUpgradeCommand(ride.Id, ExpectedVersion: 1, RiderId: Guid.NewGuid(), RegionId: 1));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(403, result.StatusCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(403);
     }
 }

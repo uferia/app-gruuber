@@ -3,10 +3,12 @@ using Gruuber.Rides.Domain;
 using Gruuber.Rides.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Pool;
 
+[TestClass]
 public class PoolTimeoutWorkerTests
 {
     private static RidesDbContext CreateInMemoryDb()
@@ -18,7 +20,7 @@ public class PoolTimeoutWorkerTests
         return new RidesDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SweepAsync_EmitsTimeoutOutboxEvent_ForExpiredPoolQueuedRides()
     {
         await using var db = CreateInMemoryDb();
@@ -33,11 +35,11 @@ public class PoolTimeoutWorkerTests
         await worker.SweepAsync(CancellationToken.None);
 
         var outboxEvents = await db.Set<RideOutboxEntry>().ToListAsync();
-        Assert.Single(outboxEvents);
-        Assert.Contains("ride_pool_timeout", outboxEvents[0].Payload);
+        outboxEvents.Should().ContainSingle();
+        outboxEvents[0].Payload.Should().Contain("ride_pool_timeout");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SweepAsync_DoesNotTouch_FreshPoolQueuedRides()
     {
         await using var db = CreateInMemoryDb();
@@ -51,10 +53,10 @@ public class PoolTimeoutWorkerTests
         await worker.SweepAsync(CancellationToken.None);
 
         var outbox = await db.Set<RideOutboxEntry>().ToListAsync();
-        Assert.Empty(outbox);
+        outbox.Should().BeEmpty();
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SweepAsync_IsIdempotent_DoesNotDuplicateEvents_OnSecondSweep()
     {
         await using var db = CreateInMemoryDb();
@@ -69,11 +71,11 @@ public class PoolTimeoutWorkerTests
         // First sweep — should emit 1 event
         await worker.SweepAsync(CancellationToken.None);
         var firstSweepEvents = await db.Set<RideOutboxEntry>().CountAsync();
-        Assert.Equal(1, firstSweepEvents);
+        firstSweepEvents.Should().Be(1);
 
         // Second sweep — ride is now Cancelled, should emit 0 additional events
         await worker.SweepAsync(CancellationToken.None);
         var secondSweepEvents = await db.Set<RideOutboxEntry>().CountAsync();
-        Assert.Equal(1, secondSweepEvents); // still just 1 total
+        secondSweepEvents.Should().Be(1); // still just 1 total
     }
 }

@@ -4,9 +4,11 @@ using Gruuber.Rides.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using StackExchange.Redis;
-using Xunit;
 
+[TestClass]
 public class SurgePricingServiceTests
 {
     private static RidesDbContext CreateInMemoryDb()
@@ -17,7 +19,7 @@ public class SurgePricingServiceTests
         return new RidesDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ResolveAsync_ReturnsMul1_WhenBelowAllThresholds()
     {
         await using var db = CreateInMemoryDb();
@@ -39,12 +41,12 @@ public class SurgePricingServiceTests
         var svc = new SurgePricingService(db, null!, redis.Object, NullLogger<SurgePricingService>.Instance);
         var result = await svc.ResolveAsync(1, "ride", 10.00m);
 
-        Assert.Equal(1.0m, result.Multiplier);
-        Assert.Null(result.Reason);
-        Assert.Equal(10.00m, result.FinalFare);
+        result.Multiplier.Should().Be(1.0m);
+        result.Reason.Should().BeNull();
+        result.FinalFare.Should().Be(10.00m);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ResolveAsync_SelectsHighestMatchingTier()
     {
         await using var db = CreateInMemoryDb();
@@ -72,12 +74,12 @@ public class SurgePricingServiceTests
         var svc = new SurgePricingService(db, null!, redis.Object, NullLogger<SurgePricingService>.Instance);
         var result = await svc.ResolveAsync(1, "ride", 10.00m);
 
-        Assert.Equal(2.0m, result.Multiplier);
-        Assert.Equal("demand", result.Reason);
-        Assert.Equal(20.00m, result.FinalFare);
+        result.Multiplier.Should().Be(2.0m);
+        result.Reason.Should().Be("demand");
+        result.FinalFare.Should().Be(20.00m);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ResolveAsync_ClampsMul_ToMaxMultiplier()
     {
         await using var db = CreateInMemoryDb();
@@ -98,10 +100,10 @@ public class SurgePricingServiceTests
         var svc = new SurgePricingService(db, null!, redis.Object, NullLogger<SurgePricingService>.Instance);
         var result = await svc.ResolveAsync(1, "ride", 10.00m);
 
-        Assert.Equal(3.0m, result.Multiplier);   // clamped from 5.0
+        result.Multiplier.Should().Be(3.0m);   // clamped from 5.0
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ResolveAsync_UsesTimeRule_OverDemandRatio()
     {
         await using var db = CreateInMemoryDb();
@@ -124,11 +126,11 @@ public class SurgePricingServiceTests
         var svc = new SurgePricingService(db, null!, redis.Object, NullLogger<SurgePricingService>.Instance);
         var result = await svc.ResolveAsync(1, "ride", 8.00m);
 
-        Assert.Equal(2.5m, result.Multiplier);
-        Assert.Equal("time_rule", result.Reason);
+        result.Multiplier.Should().Be(2.5m);
+        result.Reason.Should().Be("time_rule");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ResolveAsync_ReturnsMul1_WhenRedisThrows()
     {
         await using var db = CreateInMemoryDb();
@@ -140,6 +142,6 @@ public class SurgePricingServiceTests
         // Should not throw — fallback to DB which has no config → returns 1.0
         var result = await svc.ResolveAsync(1, "ride", 10.00m);
 
-        Assert.Equal(1.0m, result.Multiplier);
+        result.Multiplier.Should().Be(1.0m);
     }
 }

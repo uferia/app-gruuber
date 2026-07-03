@@ -7,8 +7,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Gruuber.SharedKernel.Pricing;
 using StackExchange.Redis;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+[TestClass]
 public class RequestPoolRideHandlerTests
 {
     private static RidesDbContext CreateInMemoryDb()
@@ -20,7 +22,7 @@ public class RequestPoolRideHandlerTests
         return new RidesDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_PoolRide_ReturnsPoolQueuedStatus()
     {
         await using var db = CreateInMemoryDb();
@@ -46,15 +48,15 @@ public class RequestPoolRideHandlerTests
 
         var result = await handler.HandleAsync(cmd);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(202, result.StatusCode);
-        Assert.Equal("PoolQueued", result.Data!.Status);
+        result.IsSuccess.Should().BeTrue();
+        result.StatusCode.Should().Be(202);
+        result.Data!.Status.Should().Be("PoolQueued");
 
         var savedRide = await db.Rides.SingleAsync();
-        Assert.Equal(RideStatus.PoolQueued, savedRide.Status);
+        savedRide.Status.Should().Be(RideStatus.PoolQueued);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_PoolRide_ReturnsError_WhenDestMissing()
     {
         await using var db = CreateInMemoryDb();
@@ -67,12 +69,12 @@ public class RequestPoolRideHandlerTests
 
         var result = await handler.HandleAsync(cmd);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.StatusCode);
-        Assert.Equal("DEST_REQUIRED", result.ErrorCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(400);
+        result.ErrorCode.Should().Be("DEST_REQUIRED");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task HandleAsync_PoolRide_ReturnsError_WhenNoRegionRate()
     {
         await using var db = CreateInMemoryDb();
@@ -87,8 +89,8 @@ public class RequestPoolRideHandlerTests
 
         var result = await handler.HandleAsync(cmd);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.StatusCode);
-        Assert.Equal("POOL_NOT_AVAILABLE", result.ErrorCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(400);
+        result.ErrorCode.Should().Be("POOL_NOT_AVAILABLE");
     }
 }

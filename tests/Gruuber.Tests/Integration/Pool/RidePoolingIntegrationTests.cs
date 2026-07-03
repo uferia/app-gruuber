@@ -1,11 +1,13 @@
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Integration.Pool;
 
-[Trait("Category", "Integration")]
-public class RidePoolingIntegrationTests : IAsyncLifetime
+[TestCategory("Integration")]
+[TestClass]
+public class RidePoolingIntegrationTests
 {
-    [Fact(Skip = "Requires Testcontainers: Postgres + Redis + Kafka")]
+    [TestMethod, Ignore("Requires Testcontainers: Postgres + Redis + Kafka")]
     public async Task HappyPath_TwoRiders_PoolMatch_BothComplete()
     {
         // Arrange: two riders request pool rides in same region
@@ -14,7 +16,7 @@ public class RidePoolingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Testcontainers: Postgres + Redis")]
+    [TestMethod, Ignore("Requires Testcontainers: Postgres + Redis")]
     public async Task TimeoutFlow_NoMatch_RideExpires_TransitionsToCancel()
     {
         // Arrange: one rider requests pool ride; no second rider within timeout
@@ -23,7 +25,7 @@ public class RidePoolingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Testcontainers: Postgres concurrent connections")]
+    [TestMethod, Ignore("Requires Testcontainers: Postgres concurrent connections")]
     public async Task RaceCondition_TwoMatchers_OnlyOneSucceeds_NoDuplicateMatch()
     {
         // Arrange: two pool rides eligible for matching
@@ -32,7 +34,7 @@ public class RidePoolingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Testcontainers: Postgres")]
+    [TestMethod, Ignore("Requires Testcontainers: Postgres")]
     public async Task PrivacyGuard_RideViewDoesNotExposePoolPartnerPII()
     {
         // Arrange: pool ride matched with a partner
@@ -41,6 +43,4 @@ public class RidePoolingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
-    public Task DisposeAsync() => Task.CompletedTask;
 }

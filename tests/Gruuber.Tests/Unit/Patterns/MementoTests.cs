@@ -1,5 +1,6 @@
 using Gruuber.Orders.Domain;
 using Gruuber.Rides.Domain;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Patterns;
@@ -33,17 +34,17 @@ public class MementoTests
         var snapshot = ride.CaptureSnapshot();
 
         // Assert
-        Assert.AreEqual(ride.Id,              snapshot.EntityId);
-        Assert.AreEqual(ride.Version,         snapshot.Version);
-        Assert.AreEqual(ride.RiderId,         snapshot.RiderId);
-        Assert.AreEqual("Requested",          snapshot.Status);
-        Assert.AreEqual("solo",               snapshot.RideType);
-        Assert.AreEqual(40.7,                 snapshot.PickupLat, delta: 0.001);
-        Assert.AreEqual(-74.0,                snapshot.PickupLng, delta: 0.001);
-        Assert.AreEqual(15m,                  snapshot.FinalFare);
-        Assert.AreEqual(1.5m,                 snapshot.SurgeMultiplier);
-        Assert.AreEqual(1,                    snapshot.RegionId);
-        Assert.IsNull(snapshot.DriverId);
+        snapshot.EntityId.Should().Be(ride.Id);
+        snapshot.Version.Should().Be(ride.Version);
+        snapshot.RiderId.Should().Be(ride.RiderId);
+        snapshot.Status.Should().Be("Requested");
+        snapshot.RideType.Should().Be("solo");
+        snapshot.PickupLat.Should().BeApproximately(40.7, 0.001);
+        snapshot.PickupLng.Should().BeApproximately(-74.0, 0.001);
+        snapshot.FinalFare.Should().Be(15m);
+        snapshot.SurgeMultiplier.Should().Be(1.5m);
+        snapshot.RegionId.Should().Be(1);
+        snapshot.DriverId.Should().BeNull();
     }
 
     [TestMethod]
@@ -58,9 +59,9 @@ public class MementoTests
         var snapshot = ride.CaptureSnapshot();
 
         // Assert
-        Assert.AreEqual("Matched",  snapshot.Status);
-        Assert.AreEqual(driverId,   snapshot.DriverId);
-        Assert.AreEqual(2,          snapshot.Version);
+         snapshot.Status.Should().Be("Matched");
+          snapshot.DriverId.Should().Be(driverId);
+                 snapshot.Version.Should().Be(2);
     }
 
     [TestMethod]
@@ -73,15 +74,15 @@ public class MementoTests
         // Move the ride forward
         var driverId = Guid.NewGuid();
         ride.TryMatch(driverId, expectedVersion: 1);
-        Assert.AreEqual(RideStatus.Matched, ride.Status);
+        ride.Status.Should().Be(RideStatus.Matched);
 
         // Act — restore to the captured state
         ride.RestoreFromSnapshot(snapshot);
 
         // Assert
-        Assert.AreEqual(RideStatus.Requested, ride.Status);
-        Assert.IsNull(ride.DriverId);
-        Assert.AreEqual(1, ride.Version);
+        ride.Status.Should().Be(RideStatus.Requested);
+        ride.DriverId.Should().BeNull();
+        ride.Version.Should().Be(1);
     }
 
     [TestMethod]
@@ -96,7 +97,7 @@ public class MementoTests
         var after    = DateTime.UtcNow.AddSeconds(1);
 
         // Assert
-        Assert.IsTrue(snapshot.CapturedAt >= before && snapshot.CapturedAt <= after);
+        (snapshot.CapturedAt >= before && snapshot.CapturedAt <= after).Should().BeTrue();
     }
 
     [TestMethod]
@@ -110,10 +111,10 @@ public class MementoTests
         var snap2 = ride.CaptureSnapshot(); // version 2
 
         // Assert — snapshots do not share state
-        Assert.AreEqual(1,         snap1.Version);
-        Assert.AreEqual(2,         snap2.Version);
-        Assert.AreEqual("Requested", snap1.Status);
-        Assert.AreEqual("Matched",   snap2.Status);
+                snap1.Version.Should().Be(1);
+                snap2.Version.Should().Be(2);
+        snap1.Status.Should().Be("Requested");
+          snap2.Status.Should().Be("Matched");
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -139,15 +140,15 @@ public class MementoTests
         var snapshot = order.CaptureSnapshot();
 
         // Assert
-        Assert.AreEqual(order.Id,         snapshot.EntityId);
-        Assert.AreEqual(order.Version,    snapshot.Version);
-        Assert.AreEqual(riderId,          snapshot.RiderId);
-        Assert.AreEqual(restaurantId,     snapshot.RestaurantId);
-        Assert.AreEqual(rideId,           snapshot.RideId);
-        Assert.AreEqual("Placed",         snapshot.Status);
-        Assert.AreEqual(15m,              snapshot.TotalAmount);
-        Assert.AreEqual(2,                snapshot.RegionId);
-        Assert.IsNull(snapshot.DriverId);
+                snapshot.EntityId.Should().Be(order.Id);
+           snapshot.Version.Should().Be(order.Version);
+                 snapshot.RiderId.Should().Be(riderId);
+            snapshot.RestaurantId.Should().Be(restaurantId);
+                  snapshot.RideId.Should().Be(rideId);
+                snapshot.Status.Should().Be("Placed");
+                     snapshot.TotalAmount.Should().Be(15m);
+                       snapshot.RegionId.Should().Be(2);
+        snapshot.DriverId.Should().BeNull();
     }
 
     [TestMethod]
@@ -164,8 +165,8 @@ public class MementoTests
         var snapshot = order.CaptureSnapshot();
 
         // Assert
-        Assert.AreEqual("Accepted", snapshot.Status);
-        Assert.AreEqual(2,          snapshot.Version);
+        snapshot.Status.Should().Be("Accepted");
+                 snapshot.Version.Should().Be(2);
     }
 
     [TestMethod]
@@ -185,8 +186,8 @@ public class MementoTests
         order.RestoreFromSnapshot(snapshot);
 
         // Assert
-        Assert.AreEqual(OrderStatus.Placed, order.Status);
-        Assert.AreEqual(1, order.Version);
+        order.Status.Should().Be(OrderStatus.Placed);
+        order.Version.Should().Be(1);
     }
 
     [TestMethod]
@@ -203,7 +204,7 @@ public class MementoTests
         var snapshot = order.CaptureSnapshot();
 
         // Assert
-        Assert.AreEqual(40m, snapshot.FinalFare);
-        Assert.AreEqual(2m,  snapshot.SurgeMultiplier);
+        snapshot.FinalFare.Should().Be(40m);
+         snapshot.SurgeMultiplier.Should().Be(2m);
     }
 }

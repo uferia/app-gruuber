@@ -3,10 +3,12 @@ using Gruuber.Analytics.Domain;
 using Gruuber.Analytics.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Analytics;
 
+[TestClass]
 public class ExportJobServiceTests
 {
     private static AnalyticsDbContext CreateInMemoryDb()
@@ -16,7 +18,7 @@ public class ExportJobServiceTests
         return new AnalyticsDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task EnqueueExport_CreatesJobWithPendingStatus()
     {
         await using var db = CreateInMemoryDb();
@@ -26,21 +28,21 @@ public class ExportJobServiceTests
             DateOnly.Parse("2026-01-01"), DateOnly.Parse("2026-01-31"), CancellationToken.None);
 
         var job = await db.ExportJobs.FindAsync(jobId);
-        Assert.NotNull(job);
-        Assert.Equal("pending", job!.Status);
+        job.Should().NotBeNull();
+        job!.Status.Should().Be("pending");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task GetJobStatus_ReturnsNull_WhenJobDoesNotExist()
     {
         await using var db = CreateInMemoryDb();
         var svc = new ExportJobService(db, NullLogger<ExportJobService>.Instance);
 
         var result = await svc.GetStatusAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
-        Assert.Null(result);
+        result.Should().BeNull();
     }
 
-    [Fact]
+    [TestMethod]
     public async Task GetJobStatus_ReturnsNull_WhenOwnerMismatch()
     {
         await using var db = CreateInMemoryDb();
@@ -56,6 +58,6 @@ public class ExportJobServiceTests
 
         var job = await db.ExportJobs.SingleAsync();
         var result = await svc.GetStatusAsync(job.JobId, Guid.NewGuid() /* different owner */, CancellationToken.None);
-        Assert.Null(result); // unauthorized — returns null → controller returns 403
+        result.Should().BeNull(); // unauthorized — returns null → controller returns 403
     }
 }

@@ -2,6 +2,7 @@ using Gruuber.Orders.Domain;
 using Gruuber.Orders.Domain.States;
 using Gruuber.Rides.Domain;
 using Gruuber.Rides.Domain.States;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Patterns;
@@ -22,15 +23,15 @@ public class StateMachineTests
     public void RideStateFactory_For_ReturnsCorrectStateType()
     {
         // Arrange / Act / Assert — each status maps to its concrete state class
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.Requested),      typeof(RequestedState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.PoolQueued),     typeof(PoolQueuedState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.PoolMatched),    typeof(PoolMatchedState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.Matched),        typeof(MatchedState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.EnRoute),        typeof(EnRouteState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.PartialDropoff), typeof(PartialDropoffState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.Arrived),        typeof(ArrivedState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.Completed),      typeof(CompletedState));
-        Assert.IsInstanceOfType(RideStateFactory.For(RideStatus.Cancelled),      typeof(CancelledState));
+        RideStateFactory.For(RideStatus.Requested).Should().BeOfType<RequestedState>();
+        RideStateFactory.For(RideStatus.PoolQueued).Should().BeOfType<PoolQueuedState>();
+        RideStateFactory.For(RideStatus.PoolMatched).Should().BeOfType<PoolMatchedState>();
+        RideStateFactory.For(RideStatus.Matched).Should().BeOfType<MatchedState>();
+        RideStateFactory.For(RideStatus.EnRoute).Should().BeOfType<EnRouteState>();
+        RideStateFactory.For(RideStatus.PartialDropoff).Should().BeOfType<PartialDropoffState>();
+        RideStateFactory.For(RideStatus.Arrived).Should().BeOfType<ArrivedState>();
+        RideStateFactory.For(RideStatus.Completed).Should().BeOfType<CompletedState>();
+        RideStateFactory.For(RideStatus.Cancelled).Should().BeOfType<CancelledState>();
     }
 
     [TestMethod]
@@ -40,9 +41,9 @@ public class StateMachineTests
         var state = new RequestedState();
 
         // Assert
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Matched));
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Cancelled));
-        Assert.IsFalse(state.AllowedTransitions.Contains(RideStatus.Completed));
+        state.AllowedTransitions.Contains(RideStatus.Matched).Should().BeTrue();
+        state.AllowedTransitions.Contains(RideStatus.Cancelled).Should().BeTrue();
+        state.AllowedTransitions.Contains(RideStatus.Completed).Should().BeFalse();
     }
 
     [TestMethod]
@@ -73,9 +74,9 @@ public class StateMachineTests
         var state = new EnRouteState();
 
         // Assert
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Arrived));
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.PartialDropoff));
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Cancelled));
+        state.AllowedTransitions.Contains(RideStatus.Arrived).Should().BeTrue();
+        state.AllowedTransitions.Contains(RideStatus.PartialDropoff).Should().BeTrue();
+        state.AllowedTransitions.Contains(RideStatus.Cancelled).Should().BeTrue();
     }
 
     [TestMethod]
@@ -92,7 +93,7 @@ public class StateMachineTests
         var state = new CompletedState();
 
         // Assert — terminal state
-        Assert.AreEqual(0, state.AllowedTransitions.Count);
+        state.AllowedTransitions.Count.Should().Be(0);
     }
 
     [TestMethod]
@@ -106,7 +107,7 @@ public class StateMachineTests
     public void CancelledState_HasNoAllowedTransitions()
     {
         // Assert — terminal state
-        Assert.AreEqual(0, new CancelledState().AllowedTransitions.Count);
+        new CancelledState().AllowedTransitions.Count.Should().Be(0);
     }
 
     [TestMethod]
@@ -116,9 +117,9 @@ public class StateMachineTests
         var state = new PoolQueuedState();
 
         // Assert
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.PoolMatched));
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Requested)); // solo upgrade
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Cancelled));
+        state.AllowedTransitions.Contains(RideStatus.PoolMatched).Should().BeTrue();
+        state.AllowedTransitions.Contains(RideStatus.Requested).Should().BeTrue(); // solo upgrade
+        state.AllowedTransitions.Contains(RideStatus.Cancelled).Should().BeTrue();
     }
 
     [TestMethod]
@@ -128,8 +129,8 @@ public class StateMachineTests
         var state = new ArrivedState();
 
         // Assert
-        Assert.AreEqual(1, state.AllowedTransitions.Count);
-        Assert.IsTrue(state.AllowedTransitions.Contains(RideStatus.Completed));
+        state.AllowedTransitions.Count.Should().Be(1);
+        state.AllowedTransitions.Contains(RideStatus.Completed).Should().BeTrue();
     }
 
     [TestMethod]
@@ -139,7 +140,7 @@ public class StateMachineTests
         foreach (RideStatus status in Enum.GetValues<RideStatus>())
         {
             var state = RideStateFactory.For(status);
-            Assert.AreEqual(status, state.Status, $"Status mismatch for {status}");
+            state.Status.Should().Be(status, $"Status mismatch for {status}");
         }
     }
 
@@ -150,13 +151,13 @@ public class StateMachineTests
     [TestMethod]
     public void OrderStateFactory_For_ReturnsCorrectStateType()
     {
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.Placed),     typeof(PlacedState));
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.Accepted),   typeof(AcceptedState));
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.Preparing),  typeof(PreparingState));
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.Ready),      typeof(ReadyState));
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.PickedUp),   typeof(PickedUpState));
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.Delivered),  typeof(DeliveredState));
-        Assert.IsInstanceOfType(OrderStateFactory.For(OrderStatus.Cancelled),  typeof(OrderCancelledState));
+        OrderStateFactory.For(OrderStatus.Placed).Should().BeOfType<PlacedState>();
+        OrderStateFactory.For(OrderStatus.Accepted).Should().BeOfType<AcceptedState>();
+        OrderStateFactory.For(OrderStatus.Preparing).Should().BeOfType<PreparingState>();
+        OrderStateFactory.For(OrderStatus.Ready).Should().BeOfType<ReadyState>();
+        OrderStateFactory.For(OrderStatus.PickedUp).Should().BeOfType<PickedUpState>();
+        OrderStateFactory.For(OrderStatus.Delivered).Should().BeOfType<DeliveredState>();
+        OrderStateFactory.For(OrderStatus.Cancelled).Should().BeOfType<OrderCancelledState>();
     }
 
     [TestMethod]
@@ -166,9 +167,9 @@ public class StateMachineTests
         var state = new PlacedState();
 
         // Assert
-        Assert.IsTrue(state.AllowedTransitions.Contains(OrderStatus.Accepted));
-        Assert.IsTrue(state.AllowedTransitions.Contains(OrderStatus.Cancelled));
-        Assert.IsFalse(state.AllowedTransitions.Contains(OrderStatus.Delivered));
+        state.AllowedTransitions.Contains(OrderStatus.Accepted).Should().BeTrue();
+        state.AllowedTransitions.Contains(OrderStatus.Cancelled).Should().BeTrue();
+        state.AllowedTransitions.Contains(OrderStatus.Delivered).Should().BeFalse();
     }
 
     [TestMethod]
@@ -182,14 +183,14 @@ public class StateMachineTests
     public void PreparingState_AllowsReadyAndCancelled()
     {
         var state = new PreparingState();
-        Assert.IsTrue(state.AllowedTransitions.Contains(OrderStatus.Ready));
-        Assert.IsTrue(state.AllowedTransitions.Contains(OrderStatus.Cancelled));
+        state.AllowedTransitions.Contains(OrderStatus.Ready).Should().BeTrue();
+        state.AllowedTransitions.Contains(OrderStatus.Cancelled).Should().BeTrue();
     }
 
     [TestMethod]
     public void DeliveredState_IsTerminal_HasNoAllowedTransitions()
     {
-        Assert.AreEqual(0, new DeliveredState().AllowedTransitions.Count);
+        new DeliveredState().AllowedTransitions.Count.Should().Be(0);
     }
 
     [TestMethod]
@@ -203,8 +204,8 @@ public class StateMachineTests
     public void ReadyState_OnlyAllowsPickedUp()
     {
         var state = new ReadyState();
-        Assert.AreEqual(1, state.AllowedTransitions.Count);
-        Assert.IsTrue(state.AllowedTransitions.Contains(OrderStatus.PickedUp));
+        state.AllowedTransitions.Count.Should().Be(1);
+        state.AllowedTransitions.Contains(OrderStatus.PickedUp).Should().BeTrue();
     }
 
     [TestMethod]
@@ -213,7 +214,7 @@ public class StateMachineTests
         foreach (OrderStatus status in Enum.GetValues<OrderStatus>())
         {
             var state = OrderStateFactory.For(status);
-            Assert.AreEqual(status, state.Status, $"Status mismatch for {status}");
+            state.Status.Should().Be(status, $"Status mismatch for {status}");
         }
     }
 }

@@ -1,4 +1,5 @@
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 /// <summary>
 /// Integration-level tests for SurgePricingService using a real Postgres container.
@@ -6,10 +7,11 @@ using Xunit;
 /// Run with: dotnet test --filter "Category=Integration"
 /// Requires Docker to be running.
 /// </summary>
-public class SurgePricingIntegrationTests : IAsyncLifetime
+[TestClass]
+public class SurgePricingIntegrationTests
 {
-    [Fact(Skip = "Requires Docker — run with docker-compose up")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker — run with docker-compose up")]
+    [TestCategory("Integration")]
     public async Task BookRide_DuringActiveTimeRule_LocksCorrectFinalFare()
     {
         // Arrange: start postgres container, seed surge_time_rules with current window
@@ -18,8 +20,8 @@ public class SurgePricingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker — run with docker-compose up")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker — run with docker-compose up")]
+    [TestCategory("Integration")]
     public async Task BookRide_AtHighDemand_CorrectTierApplied()
     {
         // Arrange: seed surge_config with 2 tiers, insert N requested rides to hit upper tier
@@ -28,8 +30,8 @@ public class SurgePricingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker — run with docker-compose up")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker — run with docker-compose up")]
+    [TestCategory("Integration")]
     public async Task AdminUpdatesConfig_RedisKeyDeleted_NextRequestUsesNewConfig()
     {
         // Arrange: seed config, prime Redis cache, update via PUT /v1/admin/surge/config
@@ -37,8 +39,8 @@ public class SurgePricingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker — run with docker-compose up")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker — run with docker-compose up")]
+    [TestCategory("Integration")]
     public async Task FinalFareInvariant_Unchanged_AfterAdminUpdatesConfigPostBooking()
     {
         // Arrange: book ride at 1.5x surge; admin then changes config to 2.0x
@@ -46,6 +48,4 @@ public class SurgePricingIntegrationTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
-    public Task DisposeAsync() => Task.CompletedTask;
 }

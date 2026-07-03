@@ -1,14 +1,16 @@
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 /// <summary>
 /// Integration tests for Gruuber.Chat module.
 /// Requires Docker (Postgres + Kafka + Redis via Testcontainers).
 /// Run with: dotnet test --filter "Category=Integration"
 /// </summary>
+[TestClass]
 public class ChatIntegrationTests
 {
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task PublishRideMatched_ThreadCreatedWithRiderAndDriver()
     {
         // Arrange: Postgres + Kafka containers
@@ -17,8 +19,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task PublishOrderAccepted_TwoThreadsCreated()
     {
         // Act: publish order_accepted
@@ -26,8 +28,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task SignalR_SendMessage_AllParticipantsReceive()
     {
         // Arrange: two connected SignalR clients (rider + driver), both joined the thread group
@@ -36,8 +38,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task SendMessage_ReadOnlyThread_HubExceptionRaisedOnClient()
     {
         // Arrange: thread with status=read_only
@@ -46,8 +48,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task MarkRead_NotifiesSenderViaSignalR()
     {
         // Arrange: two connected clients; sender has sent a message
@@ -56,8 +58,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task ClosureWorker_ExpiredThreads_MarkedReadOnlyAfter5Minutes()
     {
         // Arrange: thread with closes_at = now - 1 minute
@@ -66,8 +68,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task GetMessages_UserNotParticipant_Returns403()
     {
         // Act: GET /v1/chat/threads/{threadId}/messages as a user not in the thread
@@ -75,8 +77,8 @@ public class ChatIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
-    [Trait("Category", "Integration")]
+    [TestMethod, Ignore("Requires Docker")]
+    [TestCategory("Integration")]
     public async Task ConsumerFails5Times_MessageInDLQ()
     {
         // Act: publish a malformed event that causes repeated exceptions

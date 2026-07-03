@@ -4,6 +4,7 @@ using Gruuber.Rides.Domain;
 using Gruuber.Rides.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Patterns;
@@ -51,8 +52,8 @@ public class UnitOfWorkTests
         var uow             = new RidesUnitOfWork(db);
 
         // Assert — typed DbSet exposed through UoW
-        Assert.IsNotNull(uow.Rides);
-        Assert.IsNotNull(uow.Outbox);
+        uow.Rides.Should().NotBeNull();
+        uow.Outbox.Should().NotBeNull();
     }
 
     [TestMethod]
@@ -69,8 +70,8 @@ public class UnitOfWorkTests
 
         // Assert
         var persisted = await db.Rides.FindAsync(ride.Id);
-        Assert.IsNotNull(persisted);
-        Assert.AreEqual(ride.RiderId, persisted.RiderId);
+        persisted.Should().NotBeNull();
+        persisted.RiderId.Should().Be(ride.RiderId);
     }
 
     [TestMethod]
@@ -87,8 +88,8 @@ public class UnitOfWorkTests
 
         // Assert
         var persisted = await db.Set<RideOutboxEntry>().FindAsync(entry.Id);
-        Assert.IsNotNull(persisted);
-        Assert.AreEqual("pending", persisted.Status);
+        persisted.Should().NotBeNull();
+        persisted.Status.Should().Be("pending");
     }
 
     [TestMethod]
@@ -108,8 +109,8 @@ public class UnitOfWorkTests
         await uow.CommitAsync();
 
         // Assert — both records exist after commit
-        Assert.IsNotNull(await db.Rides.FindAsync(ride.Id));
-        Assert.IsNotNull(await db.Set<RideOutboxEntry>().FindAsync(outbox.Id));
+        (await db.Rides.FindAsync(ride.Id)).Should().NotBeNull();
+        (await db.Set<RideOutboxEntry>().FindAsync(outbox.Id)).Should().NotBeNull();
     }
 
     [TestMethod]
@@ -153,8 +154,8 @@ public class UnitOfWorkTests
 
         // Assert
         var persisted = await db.Orders.FindAsync(order.Id);
-        Assert.IsNotNull(persisted);
-        Assert.AreEqual(order.RiderId, persisted.RiderId);
+        persisted.Should().NotBeNull();
+        persisted.RiderId.Should().Be(order.RiderId);
     }
 
     [TestMethod]
@@ -170,7 +171,7 @@ public class UnitOfWorkTests
         await uow.SaveChangesAsync();
 
         // Assert
-        Assert.IsNotNull(await db.Set<OrderOutboxEntry>().FindAsync(entry.Id));
+        (await db.Set<OrderOutboxEntry>().FindAsync(entry.Id)).Should().NotBeNull();
     }
 
     [TestMethod]
@@ -190,8 +191,8 @@ public class UnitOfWorkTests
         await uow.CommitAsync();
 
         // Assert
-        Assert.IsNotNull(await db.Orders.FindAsync(order.Id));
-        Assert.IsNotNull(await db.Set<OrderOutboxEntry>().FindAsync(outbox.Id));
+        (await db.Orders.FindAsync(order.Id)).Should().NotBeNull();
+        (await db.Set<OrderOutboxEntry>().FindAsync(outbox.Id)).Should().NotBeNull();
     }
 
     [TestMethod]
@@ -214,7 +215,7 @@ public class UnitOfWorkTests
         var uow            = new OrdersUnitOfWork(db);
 
         // Assert — public typed DbSets
-        Assert.IsNotNull(uow.Orders);
-        Assert.IsNotNull(uow.Outbox);
+        uow.Orders.Should().NotBeNull();
+        uow.Outbox.Should().NotBeNull();
     }
 }

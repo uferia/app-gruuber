@@ -2,10 +2,12 @@ using Gruuber.Chat.Application;
 using Gruuber.Chat.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Chat;
 
+[TestClass]
 public class ChatThreadConsumerTests
 {
     private static ChatDbContext CreateInMemoryDb()
@@ -15,7 +17,7 @@ public class ChatThreadConsumerTests
         return new ChatDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessRideMatched_CreatesOneThreadWithTwoParticipants()
     {
         await using var db = CreateInMemoryDb();
@@ -35,25 +37,25 @@ public class ChatThreadConsumerTests
         await processor.ProcessAsync(payload, CancellationToken.None);
 
         var threads = await db.Threads.Include(t => t.Participants).ToListAsync();
-        Assert.Single(threads);
+        threads.Should().ContainSingle();
 
         var thread = threads[0];
-        Assert.Equal("ride", thread.ContextType);
-        Assert.Equal(rideId, thread.ContextId);
-        Assert.Equal(2, thread.Participants.Count);
+        thread.ContextType.Should().Be("ride");
+        thread.ContextId.Should().Be(rideId);
+        thread.Participants.Count.Should().Be(2);
 
         var riderParticipant = thread.Participants.FirstOrDefault(p => p.UserId == riderId);
-        Assert.NotNull(riderParticipant);
-        Assert.Equal("Your Rider", riderParticipant!.DisplayName);
-        Assert.Equal("rider", riderParticipant.Role);
+        riderParticipant.Should().NotBeNull();
+        riderParticipant!.DisplayName.Should().Be("Your Rider");
+        riderParticipant.Role.Should().Be("rider");
 
         var driverParticipant = thread.Participants.FirstOrDefault(p => p.UserId == driverId);
-        Assert.NotNull(driverParticipant);
-        Assert.Equal("Your Driver", driverParticipant!.DisplayName);
-        Assert.Equal("driver", driverParticipant.Role);
+        driverParticipant.Should().NotBeNull();
+        driverParticipant!.DisplayName.Should().Be("Your Driver");
+        driverParticipant.Role.Should().Be("driver");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessOrderAccepted_CreatesTwoThreads_RiderDriverAndRiderRestaurant()
     {
         await using var db = CreateInMemoryDb();
@@ -75,20 +77,20 @@ public class ChatThreadConsumerTests
         await processor.ProcessAsync(payload, CancellationToken.None);
 
         var threads = await db.Threads.Include(t => t.Participants).ToListAsync();
-        Assert.Equal(2, threads.Count);
+        threads.Count.Should().Be(2);
 
         var riderDriverThread = threads.FirstOrDefault(t =>
             t.Participants.Any(p => p.Role == "driver") &&
             t.Participants.Any(p => p.Role == "rider" && p.UserId == riderId));
-        Assert.NotNull(riderDriverThread);
+        riderDriverThread.Should().NotBeNull();
 
         var riderRestaurantThread = threads.FirstOrDefault(t =>
             t.Participants.Any(p => p.Role == "restaurant") &&
             t.Participants.Any(p => p.Role == "rider" && p.UserId == riderId));
-        Assert.NotNull(riderRestaurantThread);
+        riderRestaurantThread.Should().NotBeNull();
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessRideMatched_IdempotentOnDuplicateEvent_ThreadCreatedOnlyOnce()
     {
         await using var db = CreateInMemoryDb();
@@ -106,6 +108,6 @@ public class ChatThreadConsumerTests
         await processor.ProcessAsync(payload, CancellationToken.None);
         await processor.ProcessAsync(payload, CancellationToken.None);
 
-        Assert.Single(await db.Threads.ToListAsync());
+        (await db.Threads.ToListAsync()).Should().ContainSingle();
     }
 }

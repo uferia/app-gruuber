@@ -3,8 +3,10 @@ using Gruuber.Chat.Domain;
 using Gruuber.Chat.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+[TestClass]
 public class ChatThreadClosureWorkerTests
 {
     private static ChatDbContext CreateInMemoryDb()
@@ -14,7 +16,7 @@ public class ChatThreadClosureWorkerTests
         return new ChatDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SweepExpired_MarksThreadsPassedClosesAtAsReadOnly()
     {
         await using var db = CreateInMemoryDb();
@@ -46,12 +48,12 @@ public class ChatThreadClosureWorkerTests
         await service.SweepAsync(CancellationToken.None);
 
         var threads = await db.Threads.OrderByDescending(t => t.ClosesAt).ToListAsync();
-        Assert.Equal("active", threads[0].Status);
-        Assert.Equal("read_only", threads[1].Status);
-        Assert.Equal("active", threads[2].Status);
+        threads[0].Status.Should().Be("active");
+        threads[1].Status.Should().Be("read_only");
+        threads[2].Status.Should().Be("active");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SweepExpired_AlreadyReadOnly_NoStateChange()
     {
         await using var db = CreateInMemoryDb();
@@ -68,6 +70,6 @@ public class ChatThreadClosureWorkerTests
         await service.SweepAsync(CancellationToken.None);
 
         var thread = await db.Threads.SingleAsync();
-        Assert.Equal("read_only", thread.Status);
+        thread.Status.Should().Be("read_only");
     }
 }

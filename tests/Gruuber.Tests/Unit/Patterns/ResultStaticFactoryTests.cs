@@ -1,4 +1,5 @@
 using Gruuber.SharedKernel.Results;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Patterns;
@@ -19,10 +20,10 @@ public class ResultStaticFactoryTests
         var result = Result<int>.Ok(42);
 
         // Assert
-        Assert.IsTrue(result.IsSuccess);
-        Assert.AreEqual(42, result.Value);
-        Assert.IsNull(result.ErrorCode);
-        Assert.IsNull(result.ErrorMessage);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(42);
+        result.ErrorCode.Should().BeNull();
+        result.ErrorMessage.Should().BeNull();
     }
 
     [TestMethod]
@@ -35,8 +36,8 @@ public class ResultStaticFactoryTests
         var result = Result<object>.Ok(expected);
 
         // Assert
-        Assert.IsTrue(result.IsSuccess);
-        Assert.AreSame(expected, result.Value);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeSameAs(expected);
     }
 
     // ── Result<T>.Fail ────────────────────────────────────────────────────────
@@ -48,10 +49,10 @@ public class ResultStaticFactoryTests
         var result = Result<string>.Fail("NOT_FOUND", "Resource was not found.");
 
         // Assert
-        Assert.IsFalse(result.IsSuccess);
-        Assert.AreEqual("NOT_FOUND", result.ErrorCode);
-        Assert.AreEqual("Resource was not found.", result.ErrorMessage);
-        Assert.IsNull(result.Value);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        result.ErrorMessage.Should().Be("Resource was not found.");
+        result.Value.Should().BeNull();
     }
 
     [TestMethod]
@@ -62,9 +63,9 @@ public class ResultStaticFactoryTests
         var viaVerbose = Result<string>.Failure("ERR", "msg");
 
         // Assert — both factory methods produce the same observable state
-        Assert.AreEqual(viaAlias.IsSuccess, viaVerbose.IsSuccess);
-        Assert.AreEqual(viaAlias.ErrorCode, viaVerbose.ErrorCode);
-        Assert.AreEqual(viaAlias.ErrorMessage, viaVerbose.ErrorMessage);
+        viaVerbose.IsSuccess.Should().Be(viaAlias.IsSuccess);
+        viaVerbose.ErrorCode.Should().Be(viaAlias.ErrorCode);
+        viaVerbose.ErrorMessage.Should().Be(viaAlias.ErrorMessage);
     }
 
     // ── ApplicationResult<T> ──────────────────────────────────────────────────
@@ -76,9 +77,9 @@ public class ResultStaticFactoryTests
         var result = ApplicationResult<string>.Success("hello");
 
         // Assert
-        Assert.IsTrue(result.IsSuccess);
-        Assert.AreEqual(200, result.StatusCode);
-        Assert.AreEqual("hello", result.Data);
+        result.IsSuccess.Should().BeTrue();
+        result.StatusCode.Should().Be(200);
+        result.Data.Should().Be("hello");
     }
 
     [TestMethod]
@@ -88,8 +89,8 @@ public class ResultStaticFactoryTests
         var result = ApplicationResult<Guid>.Accepted(Guid.Empty);
 
         // Assert
-        Assert.IsTrue(result.IsSuccess);
-        Assert.AreEqual(202, result.StatusCode);
+        result.IsSuccess.Should().BeTrue();
+        result.StatusCode.Should().Be(202);
     }
 
     [TestMethod]
@@ -99,9 +100,9 @@ public class ResultStaticFactoryTests
         var result = ApplicationResult<string>.Failure("INVALID", "bad request");
 
         // Assert
-        Assert.IsFalse(result.IsSuccess);
-        Assert.AreEqual(400, result.StatusCode);
-        Assert.AreEqual("INVALID", result.ErrorCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(400);
+        result.ErrorCode.Should().Be("INVALID");
     }
 
     [TestMethod]
@@ -114,10 +115,10 @@ public class ResultStaticFactoryTests
         var result = ApplicationResult<string>.Conflict(entityId, currentVersion: 5);
 
         // Assert
-        Assert.IsFalse(result.IsSuccess);
-        Assert.AreEqual(409, result.StatusCode);
-        Assert.AreEqual("RESOURCE_CONFLICTED", result.ErrorCode);
-        Assert.IsTrue(result.ErrorMessage!.Contains("5"));
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.ErrorCode.Should().Be("RESOURCE_CONFLICTED");
+        result.ErrorMessage!.Contains("5").Should().BeTrue();
     }
 
     [TestMethod]
@@ -127,6 +128,6 @@ public class ResultStaticFactoryTests
         var result = ApplicationResult<string>.Failure("SERVER_ERR", "oops", 500);
 
         // Assert
-        Assert.AreEqual(500, result.StatusCode);
+        result.StatusCode.Should().Be(500);
     }
 }

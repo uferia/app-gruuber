@@ -6,8 +6,10 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using StackExchange.Redis;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+[TestClass]
 public class PoolMatcherServiceTests
 {
     private static RidesDbContext CreateInMemoryDb()
@@ -19,7 +21,7 @@ public class PoolMatcherServiceTests
         return new RidesDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task TryMatchRidesAsync_MatchesTwoCompatibleRiders()
     {
         // Two riders going in compatible directions (detour < max)
@@ -56,16 +58,16 @@ public class PoolMatcherServiceTests
         var matcher = new PoolMatcherService(db, redis.Object, NullLogger<PoolMatcherService>.Instance);
         var matched = await matcher.TryMatchRidesAsync(1, CancellationToken.None);
 
-        Assert.True(matched);
+        matched.Should().BeTrue();
         var updated1 = await db.Rides.FindAsync(ride1.Id);
         var updated2 = await db.Rides.FindAsync(ride2.Id);
-        Assert.Equal(RideStatus.PoolMatched, updated1!.Status);
-        Assert.Equal(RideStatus.PoolMatched, updated2!.Status);
-        Assert.Equal(updated1.PoolTripId, updated2.PoolTripId);
-        Assert.NotEqual(updated1.PoolSlot, updated2.PoolSlot);
+        updated1!.Status.Should().Be(RideStatus.PoolMatched);
+        updated2!.Status.Should().Be(RideStatus.PoolMatched);
+        updated2.PoolTripId.Should().Be(updated1.PoolTripId);
+        updated2.PoolSlot.Should().NotBe(updated1.PoolSlot);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task TryMatchRidesAsync_ReturnsNoMatch_WhenDetourExceedsMax()
     {
         await using var db = CreateInMemoryDb();
@@ -92,9 +94,9 @@ public class PoolMatcherServiceTests
         var matcher = new PoolMatcherService(db, redis.Object, NullLogger<PoolMatcherService>.Instance);
         var matched = await matcher.TryMatchRidesAsync(1, CancellationToken.None);
 
-        Assert.False(matched);
+        matched.Should().BeFalse();
         // Rides remain PoolQueued — not modified
         var r1 = await db.Rides.FindAsync(ride1.Id);
-        Assert.Equal(RideStatus.PoolQueued, r1!.Status);
+        r1!.Status.Should().Be(RideStatus.PoolQueued);
     }
 }

@@ -1,6 +1,7 @@
 using Gruuber.Orders.Application;
 using Gruuber.Rides.Application;
 using Gruuber.SharedKernel.Messaging;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Text.Json;
 
@@ -29,9 +30,9 @@ public class AbstractFactoryTests
             pickupLat: 40.7, pickupLng: -74.0, surgeMultiplier: 1.5m, finalFare: 15m);
 
         // Assert
-        Assert.AreEqual("ride-events-1", entry.EventType);
-        Assert.AreEqual("pending", entry.Status);
-        Assert.AreNotEqual(Guid.Empty, entry.Id);
+        entry.EventType.Should().Be("ride-events-1");
+        entry.Status.Should().Be("pending");
+        entry.Id.Should().NotBe(Guid.Empty);
     }
 
     [TestMethod]
@@ -46,8 +47,8 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual(rideId.ToString(), doc.GetProperty("RideId").GetString());
-        Assert.AreEqual("ride_requested", doc.GetProperty("EventName").GetString());
+        doc.GetProperty("RideId").GetString().Should().Be(rideId.ToString());
+        doc.GetProperty("EventName").GetString().Should().Be("ride_requested");
     }
 
     [TestMethod]
@@ -62,9 +63,9 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual("ride-events-2", entry.EventType);
-        Assert.AreEqual(driverId.ToString(), doc.GetProperty("DriverId").GetString());
-        Assert.AreEqual(0.87, doc.GetProperty("Score").GetDouble(), delta: 0.001);
+        entry.EventType.Should().Be("ride-events-2");
+        doc.GetProperty("DriverId").GetString().Should().Be(driverId.ToString());
+        doc.GetProperty("Score").GetDouble().Should().BeApproximately(0.87, 0.001);
     }
 
     [TestMethod]
@@ -78,8 +79,8 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual("Completed", doc.GetProperty("NewStatus").GetString());
-        Assert.AreEqual("ride_status_changed", doc.GetProperty("EventName").GetString());
+        doc.GetProperty("NewStatus").GetString().Should().Be("Completed");
+        doc.GetProperty("EventName").GetString().Should().Be("ride_status_changed");
     }
 
     [TestMethod]
@@ -94,9 +95,9 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual("ride-events-3", entry.EventType);
-        Assert.AreEqual("ride_failed", doc.GetProperty("EventName").GetString());
-        Assert.AreEqual("timeout", doc.GetProperty("Reason").GetString());
+        entry.EventType.Should().Be("ride-events-3");
+        doc.GetProperty("EventName").GetString().Should().Be("ride_failed");
+        doc.GetProperty("Reason").GetString().Should().Be("timeout");
     }
 
     [TestMethod]
@@ -110,8 +111,8 @@ public class AbstractFactoryTests
         var region99 = factory.CreateRideRequested(99, Guid.NewGuid(), Guid.NewGuid(), 0, 0, 1m, 5m);
 
         // Assert
-        Assert.AreEqual("ride-events-5", region5.EventType);
-        Assert.AreEqual("ride-events-99", region99.EventType);
+        region5.EventType.Should().Be("ride-events-5");
+        region99.EventType.Should().Be("ride-events-99");
     }
 
     // ── OrderOutboxFactory ────────────────────────────────────────────────────
@@ -130,8 +131,8 @@ public class AbstractFactoryTests
             surgeMultiplier: 1.0m, finalFare: 20m);
 
         // Assert
-        Assert.AreEqual("order-events-1", entry.EventType);
-        Assert.AreEqual("pending", entry.Status);
+        entry.EventType.Should().Be("order-events-1");
+        entry.Status.Should().Be("pending");
     }
 
     [TestMethod]
@@ -146,8 +147,8 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual(orderId.ToString(), doc.GetProperty("OrderId").GetString());
-        Assert.AreEqual("order_created", doc.GetProperty("EventName").GetString());
+        doc.GetProperty("OrderId").GetString().Should().Be(orderId.ToString());
+        doc.GetProperty("EventName").GetString().Should().Be("order_created");
     }
 
     [TestMethod]
@@ -162,8 +163,8 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual("Preparing", doc.GetProperty("NewStatus").GetString());
-        Assert.AreEqual(actorId.ToString(), doc.GetProperty("ActorId").GetString());
+        doc.GetProperty("NewStatus").GetString().Should().Be("Preparing");
+        doc.GetProperty("ActorId").GetString().Should().Be(actorId.ToString());
     }
 
     [TestMethod]
@@ -177,8 +178,8 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.IsTrue(doc.GetProperty("RefundRequired").GetBoolean());
-        Assert.AreEqual("order_cancelled", doc.GetProperty("EventName").GetString());
+        doc.GetProperty("RefundRequired").GetBoolean().Should().BeTrue();
+        doc.GetProperty("EventName").GetString().Should().Be("order_cancelled");
     }
 
     [TestMethod]
@@ -192,7 +193,7 @@ public class AbstractFactoryTests
         var doc   = JsonDocument.Parse(entry.Payload).RootElement;
 
         // Assert
-        Assert.AreEqual("order_failed", doc.GetProperty("EventName").GetString());
-        Assert.AreEqual("payment_timeout", doc.GetProperty("Reason").GetString());
+        doc.GetProperty("EventName").GetString().Should().Be("order_failed");
+        doc.GetProperty("Reason").GetString().Should().Be("payment_timeout");
     }
 }

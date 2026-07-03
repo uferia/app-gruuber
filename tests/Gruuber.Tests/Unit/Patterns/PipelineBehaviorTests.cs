@@ -2,6 +2,7 @@ using Gruuber.SharedKernel.Messaging.Pipeline;
 using Gruuber.SharedKernel.Results;
 using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel.DataAnnotations;
 
@@ -40,7 +41,7 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.AreSame(expected, result);
+        result.Should().BeSameAs(expected);
     }
 
     [TestMethod]
@@ -51,11 +52,12 @@ public class PipelineBehaviorTests
         var behavior = new LoggingBehavior<TestRequest, ApplicationResult<string>>(logger);
 
         // Act / Assert
-        await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+        var act = async () =>
             await behavior.Handle(
                 new TestRequest("x"),
                 () => throw new InvalidOperationException("boom"),
-                CancellationToken.None));
+                CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     // ── ValidationBehavior ────────────────────────────────────────────────────
@@ -74,7 +76,7 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.AreSame(expected, result);
+        result.Should().BeSameAs(expected);
     }
 
     [TestMethod]
@@ -90,9 +92,9 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.IsFalse(result.IsSuccess);
-        Assert.AreEqual("VALIDATION_FAILED", result.ErrorCode);
-        Assert.AreEqual(400, result.StatusCode);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.StatusCode.Should().Be(400);
     }
 
     [TestMethod]
@@ -108,8 +110,8 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.IsFalse(result.IsSuccess);
-        Assert.AreEqual("VALIDATION_FAILED", result.ErrorCode);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
     }
 
     // ── ErrorHandlingBehavior ─────────────────────────────────────────────────
@@ -129,7 +131,7 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.AreSame(expected, result);
+        result.Should().BeSameAs(expected);
     }
 
     [TestMethod]
@@ -146,9 +148,9 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.IsFalse(result.IsSuccess);
-        Assert.AreEqual(500, result.StatusCode);
-        Assert.AreEqual("INTERNAL_ERROR", result.ErrorCode);
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(500);
+        result.ErrorCode.Should().Be("INTERNAL_ERROR");
     }
 
     [TestMethod]
@@ -159,11 +161,12 @@ public class PipelineBehaviorTests
         var behavior = new ErrorHandlingBehavior<TestRequest, ApplicationResult<string>>(logger);
 
         // Act / Assert — cancellation propagates
-        await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
+        var act = async () =>
             await behavior.Handle(
                 new TestRequest("x"),
                 () => throw new OperationCanceledException(),
-                CancellationToken.None));
+                CancellationToken.None);
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     // ── Behavior Chaining ─────────────────────────────────────────────────────
@@ -186,7 +189,7 @@ public class PipelineBehaviorTests
             CancellationToken.None);
 
         // Assert
-        Assert.IsTrue(result.IsSuccess);
-        Assert.AreEqual("result", result.Data);
+        result.IsSuccess.Should().BeTrue();
+        result.Data.Should().Be("result");
     }
 }

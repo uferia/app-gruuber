@@ -4,10 +4,12 @@ using Gruuber.Analytics.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Analytics;
 
+[TestClass]
 public class AnalyticsConsumerServiceTests
 {
     private static AnalyticsDbContext CreateInMemoryDb()
@@ -19,7 +21,7 @@ public class AnalyticsConsumerServiceTests
         return new AnalyticsDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessRideCompleted_UpsertDriverStatsAndAdminStats()
     {
         await using var db = CreateInMemoryDb();
@@ -40,14 +42,14 @@ public class AnalyticsConsumerServiceTests
 
         var driverStat = await db.DriverStatsDaily
             .SingleAsync(x => x.DriverId == driverId);
-        Assert.Equal(1, driverStat.TripsCompleted);
-        Assert.Equal(12.50m, driverStat.GrossEarnings);
+        driverStat.TripsCompleted.Should().Be(1);
+        driverStat.GrossEarnings.Should().Be(12.50m);
 
         var adminStat = await db.AdminStatsDaily.SingleAsync(x => x.RegionId == 1);
-        Assert.Equal(1, adminStat.TotalRides);
+        adminStat.TotalRides.Should().Be(1);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessRideCompleted_AccumulatesMultipleEvents()
     {
         await using var db = CreateInMemoryDb();
@@ -70,11 +72,11 @@ public class AnalyticsConsumerServiceTests
         }
 
         var stat = await db.DriverStatsDaily.SingleAsync(x => x.DriverId == driverId);
-        Assert.Equal(5, stat.TripsCompleted);
-        Assert.Equal(50.00m, stat.GrossEarnings);
+        stat.TripsCompleted.Should().Be(5);
+        stat.GrossEarnings.Should().Be(50.00m);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessDuplicateEvent_SkipsSecondUpsert()
     {
         await using var db = CreateInMemoryDb();
@@ -97,10 +99,10 @@ public class AnalyticsConsumerServiceTests
         await processor.ProcessAsync(payload, CancellationToken.None); // duplicate
 
         var stat = await db.DriverStatsDaily.SingleAsync(x => x.DriverId == driverId);
-        Assert.Equal(1, stat.TripsCompleted); // not 2
+        stat.TripsCompleted.Should().Be(1); // not 2
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ProcessOrderDelivered_UpsertRestaurantAndMenuItemStats()
     {
         await using var db = CreateInMemoryDb();
@@ -124,12 +126,12 @@ public class AnalyticsConsumerServiceTests
         await processor.ProcessAsync(payload, CancellationToken.None);
 
         var restStat = await db.RestaurantStatsDaily.SingleAsync(x => x.RestaurantId == restaurantId);
-        Assert.Equal(1, restStat.OrdersCompleted);
-        Assert.Equal(25.00m, restStat.GrossRevenue);
+        restStat.OrdersCompleted.Should().Be(1);
+        restStat.GrossRevenue.Should().Be(25.00m);
 
         var menuStats = await db.MenuItemStatsDaily
             .Where(x => x.RestaurantId == restaurantId).ToListAsync();
-        Assert.Equal(2, menuStats.Count);
-        Assert.Equal(2, menuStats.First(x => x.ItemName == "Burger").UnitsSold);
+        menuStats.Count.Should().Be(2);
+        menuStats.First(x => x.ItemName == "Burger").UnitsSold.Should().Be(2);
     }
 }

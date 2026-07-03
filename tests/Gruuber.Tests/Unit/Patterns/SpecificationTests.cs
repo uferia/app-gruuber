@@ -1,6 +1,7 @@
 using Gruuber.Orders.Application.Specifications;
 using Gruuber.Rides.Application.Specifications;
 using Gruuber.SharedKernel.Domain;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Patterns;
@@ -34,42 +35,42 @@ public class SpecificationTests
         var spec = new AlwaysTrue<string>().And(new AlwaysTrue<string>());
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy("x"));
+        spec.IsSatisfiedBy("x").Should().BeTrue();
     }
 
     [TestMethod]
     public void AndSpecification_TrueAndFalse_ReturnsFalse()
     {
         var spec = new AlwaysTrue<string>().And(new AlwaysFalse<string>());
-        Assert.IsFalse(spec.IsSatisfiedBy("x"));
+        spec.IsSatisfiedBy("x").Should().BeFalse();
     }
 
     [TestMethod]
     public void OrSpecification_FalseOrTrue_ReturnsTrue()
     {
         var spec = new AlwaysFalse<string>().Or(new AlwaysTrue<string>());
-        Assert.IsTrue(spec.IsSatisfiedBy("x"));
+        spec.IsSatisfiedBy("x").Should().BeTrue();
     }
 
     [TestMethod]
     public void OrSpecification_FalseOrFalse_ReturnsFalse()
     {
         var spec = new AlwaysFalse<string>().Or(new AlwaysFalse<string>());
-        Assert.IsFalse(spec.IsSatisfiedBy("x"));
+        spec.IsSatisfiedBy("x").Should().BeFalse();
     }
 
     [TestMethod]
     public void NotSpecification_NegatesTrue()
     {
         var spec = new AlwaysTrue<int>().Not();
-        Assert.IsFalse(spec.IsSatisfiedBy(0));
+        spec.IsSatisfiedBy(0).Should().BeFalse();
     }
 
     [TestMethod]
     public void NotSpecification_NegatesFalse()
     {
         var spec = new AlwaysFalse<int>().Not();
-        Assert.IsTrue(spec.IsSatisfiedBy(0));
+        spec.IsSatisfiedBy(0).Should().BeTrue();
     }
 
     [TestMethod]
@@ -80,7 +81,7 @@ public class SpecificationTests
             .And(new AlwaysFalse<string>().Not())
             .Or(new AlwaysFalse<string>());
 
-        Assert.IsTrue(spec.IsSatisfiedBy("any"));
+        spec.IsSatisfiedBy("any").Should().BeTrue();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -101,8 +102,8 @@ public class SpecificationTests
         var spec = new DriverAvailableSpecification();
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeDriver(available: true)));
-        Assert.IsFalse(spec.IsSatisfiedBy(MakeDriver(available: false)));
+        spec.IsSatisfiedBy(MakeDriver(available: true)).Should().BeTrue();
+        spec.IsSatisfiedBy(MakeDriver(available: false)).Should().BeFalse();
     }
 
     [TestMethod]
@@ -112,8 +113,8 @@ public class SpecificationTests
         var spec = new DriverWithinRadiusSpecification(maxDistanceKm: 3.0);
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeDriver(distKm: 2.9)));
-        Assert.IsFalse(spec.IsSatisfiedBy(MakeDriver(distKm: 3.1)));
+        spec.IsSatisfiedBy(MakeDriver(distKm: 2.9)).Should().BeTrue();
+        spec.IsSatisfiedBy(MakeDriver(distKm: 3.1)).Should().BeFalse();
     }
 
     [TestMethod]
@@ -123,7 +124,7 @@ public class SpecificationTests
         var spec = new DriverWithinRadiusSpecification(maxDistanceKm: 5.0);
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeDriver(distKm: 5.0)));
+        spec.IsSatisfiedBy(MakeDriver(distKm: 5.0)).Should().BeTrue();
     }
 
     [TestMethod]
@@ -133,8 +134,8 @@ public class SpecificationTests
         var spec = new DriverMinRatingSpecification(minRating: 4.0);
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeDriver(rating: 4.0)));
-        Assert.IsFalse(spec.IsSatisfiedBy(MakeDriver(rating: 3.9)));
+        spec.IsSatisfiedBy(MakeDriver(rating: 4.0)).Should().BeTrue();
+        spec.IsSatisfiedBy(MakeDriver(rating: 3.9)).Should().BeFalse();
     }
 
     [TestMethod]
@@ -145,7 +146,7 @@ public class SpecificationTests
         var candidate = MakeDriver(available: true, distKm: 2.0, rating: 4.5);
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy(candidate));
+        spec.IsSatisfiedBy(candidate).Should().BeTrue();
     }
 
     [TestMethod]
@@ -156,7 +157,7 @@ public class SpecificationTests
         var candidate = MakeDriver(available: false, distKm: 1.0, rating: 5.0);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(candidate));
+        spec.IsSatisfiedBy(candidate).Should().BeFalse();
     }
 
     [TestMethod]
@@ -167,7 +168,7 @@ public class SpecificationTests
         var candidate = MakeDriver(available: true, distKm: 4.0, rating: 5.0);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(candidate));
+        spec.IsSatisfiedBy(candidate).Should().BeFalse();
     }
 
     [TestMethod]
@@ -178,7 +179,7 @@ public class SpecificationTests
         var candidate = MakeDriver(available: true, distKm: 1.0, rating: 3.0);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(candidate));
+        spec.IsSatisfiedBy(candidate).Should().BeFalse();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -199,8 +200,8 @@ public class SpecificationTests
         var spec = new RestaurantOpenSpecification();
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(MakeOrder(restaurantOpen: false)));
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeOrder(restaurantOpen: true)));
+        spec.IsSatisfiedBy(MakeOrder(restaurantOpen: false)).Should().BeFalse();
+        spec.IsSatisfiedBy(MakeOrder(restaurantOpen: true)).Should().BeTrue();
     }
 
     [TestMethod]
@@ -210,8 +211,8 @@ public class SpecificationTests
         var spec = new OrderHasItemsSpecification();
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(MakeOrder(itemCount: 0)));
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeOrder(itemCount: 1)));
+        spec.IsSatisfiedBy(MakeOrder(itemCount: 0)).Should().BeFalse();
+        spec.IsSatisfiedBy(MakeOrder(itemCount: 1)).Should().BeTrue();
     }
 
     [TestMethod]
@@ -221,8 +222,8 @@ public class SpecificationTests
         var spec = new MinimumOrderAmountSpecification(minimumAmount: 10m);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(MakeOrder(total: 9.99m)));
-        Assert.IsTrue(spec.IsSatisfiedBy(MakeOrder(total: 10.00m)));
+        spec.IsSatisfiedBy(MakeOrder(total: 9.99m)).Should().BeFalse();
+        spec.IsSatisfiedBy(MakeOrder(total: 10.00m)).Should().BeTrue();
     }
 
     [TestMethod]
@@ -233,7 +234,7 @@ public class SpecificationTests
         var ctx  = MakeOrder(restaurantOpen: true, itemCount: 3, total: 25m);
 
         // Assert
-        Assert.IsTrue(spec.IsSatisfiedBy(ctx));
+        spec.IsSatisfiedBy(ctx).Should().BeTrue();
     }
 
     [TestMethod]
@@ -244,7 +245,7 @@ public class SpecificationTests
         var ctx  = MakeOrder(restaurantOpen: false);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(ctx));
+        spec.IsSatisfiedBy(ctx).Should().BeFalse();
     }
 
     [TestMethod]
@@ -255,7 +256,7 @@ public class SpecificationTests
         var ctx  = MakeOrder(itemCount: 0, total: 0m);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(ctx));
+        spec.IsSatisfiedBy(ctx).Should().BeFalse();
     }
 
     [TestMethod]
@@ -266,6 +267,6 @@ public class SpecificationTests
         var ctx  = MakeOrder(restaurantOpen: true, itemCount: 1, total: 5m);
 
         // Assert
-        Assert.IsFalse(spec.IsSatisfiedBy(ctx));
+        spec.IsSatisfiedBy(ctx).Should().BeFalse();
     }
 }

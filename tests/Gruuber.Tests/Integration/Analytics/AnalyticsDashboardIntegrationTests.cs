@@ -1,4 +1,5 @@
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Integration.Analytics;
 
@@ -7,10 +8,11 @@ namespace Gruuber.Tests.Integration.Analytics;
 /// Requires Docker (Postgres + Kafka via Testcontainers).
 /// Run with: dotnet test --filter "Category=Integration"
 /// </summary>
-[Trait("Category", "Integration")]
+[TestCategory("Integration")]
+[TestClass]
 public class AnalyticsDashboardIntegrationTests
 {
-    [Fact(Skip = "Requires Docker")]
+    [TestMethod, Ignore("Requires Docker")]
     public async Task Publish5RideCompletedEvents_DriverStatsHasCorrectCumulativeTotals()
     {
         // Arrange: Postgres + Kafka containers; seed region config
@@ -19,7 +21,7 @@ public class AnalyticsDashboardIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
+    [TestMethod, Ignore("Requires Docker")]
     public async Task PublishOrderDeliveredWith3Items_ThreeMenuItemStatsRows()
     {
         // Arrange: Postgres + Kafka containers
@@ -28,7 +30,7 @@ public class AnalyticsDashboardIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
+    [TestMethod, Ignore("Requires Docker")]
     public async Task ReplayDuplicateEvent_TotalsUnchanged()
     {
         // Act: publish same event_id twice
@@ -36,7 +38,7 @@ public class AnalyticsDashboardIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
+    [TestMethod, Ignore("Requires Docker")]
     public async Task ConsumerFails5Times_MessageInDLQ()
     {
         // Arrange: misconfigured consumer + real Kafka
@@ -44,7 +46,7 @@ public class AnalyticsDashboardIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
+    [TestMethod, Ignore("Requires Docker")]
     public async Task ExportJob_RequestCSV_PollJobId_DownloadUrl()
     {
         // Act: POST /v1/analytics/driver/earnings/export?format=csv
@@ -52,7 +54,7 @@ public class AnalyticsDashboardIntegrationTests
         await Task.CompletedTask;
     }
 
-    [Fact(Skip = "Requires Docker")]
+    [TestMethod, Ignore("Requires Docker")]
     public async Task DriverCannotAccessOtherDriversData_Returns403()
     {
         // Act: GET /v1/analytics/driver/summary as driver A with driver B's sub in JWT

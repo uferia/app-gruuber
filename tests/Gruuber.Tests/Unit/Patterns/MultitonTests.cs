@@ -2,6 +2,7 @@ using Gruuber.Api.Infrastructure.Kafka;
 using Gruuber.Api.Infrastructure.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using StackExchange.Redis;
@@ -40,8 +41,8 @@ public class MultitonTests
         var db = registry.GetForRegion(regionId: 1);
 
         // Assert
-        Assert.IsNotNull(db);
-        Assert.AreSame(dbMock.Object, db);
+        db.Should().NotBeNull();
+        db.Should().BeSameAs(dbMock.Object);
     }
 
     [TestMethod]
@@ -56,7 +57,7 @@ public class MultitonTests
         var db2 = registry.GetForRegion(1);
 
         // Assert
-        Assert.AreSame(db1, db2);
+        db2.Should().BeSameAs(db1);
     }
 
     [TestMethod]
@@ -78,7 +79,7 @@ public class MultitonTests
         var db2 = registry.GetForRegion(2);
 
         // Assert
-        Assert.AreNotSame(db1, db2);
+        db2.Should().NotBeSameAs(db1);
     }
 
     [TestMethod]
@@ -94,10 +95,10 @@ public class MultitonTests
         registry.GetForRegion(3);
 
         // Assert
-        Assert.AreEqual(3, registry.All.Count);
-        Assert.IsTrue(registry.All.ContainsKey(1));
-        Assert.IsTrue(registry.All.ContainsKey(2));
-        Assert.IsTrue(registry.All.ContainsKey(3));
+        registry.All.Count.Should().Be(3);
+        registry.All.ContainsKey(1).Should().BeTrue();
+        registry.All.ContainsKey(2).Should().BeTrue();
+        registry.All.ContainsKey(3).Should().BeTrue();
     }
 
     [TestMethod]
@@ -108,7 +109,7 @@ public class MultitonTests
         var registry = new RegionedRedisDatabaseRegistry(multiplexer.Object);
 
         // Assert — no clients created yet
-        Assert.AreEqual(0, registry.All.Count);
+        registry.All.Count.Should().Be(0);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -138,7 +139,7 @@ public class MultitonTests
         var producer = registry.GetForRegion(regionId: 1);
 
         // Assert
-        Assert.IsNotNull(producer);
+        producer.Should().NotBeNull();
     }
 
     [TestMethod]
@@ -154,7 +155,7 @@ public class MultitonTests
         var p2 = registry.GetForRegion(1);
 
         // Assert — Multiton: same key → same instance
-        Assert.AreSame(p1, p2);
+        p2.Should().BeSameAs(p1);
     }
 
     [TestMethod]
@@ -170,7 +171,7 @@ public class MultitonTests
         var p2 = registry.GetForRegion(2);
 
         // Assert
-        Assert.AreNotSame(p1, p2);
+        p2.Should().NotBeSameAs(p1);
     }
 
     [TestMethod]
@@ -186,9 +187,9 @@ public class MultitonTests
         registry.GetForRegion(20);
 
         // Assert
-        Assert.AreEqual(2, registry.All.Count);
-        Assert.IsTrue(registry.All.ContainsKey(10));
-        Assert.IsTrue(registry.All.ContainsKey(20));
+        registry.All.Count.Should().Be(2);
+        registry.All.ContainsKey(10).Should().BeTrue();
+        registry.All.ContainsKey(20).Should().BeTrue();
     }
 
     [TestMethod]
@@ -207,7 +208,7 @@ public class MultitonTests
         var producer = registry.GetForRegion(5);
 
         // Assert — producer created successfully with region-specific config
-        Assert.IsNotNull(producer);
+        producer.Should().NotBeNull();
     }
 
     [TestMethod]

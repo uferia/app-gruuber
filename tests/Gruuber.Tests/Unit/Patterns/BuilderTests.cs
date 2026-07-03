@@ -1,5 +1,6 @@
 using Gruuber.Orders.Domain;
 using Gruuber.Rides.Domain;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Patterns;
@@ -28,13 +29,13 @@ public class BuilderTests
             .Build();
 
         // Assert
-        Assert.AreEqual(riderId, ride.RiderId);
-        Assert.AreEqual("solo", ride.RideType);
-        Assert.AreEqual(1, ride.RegionId);
-        Assert.AreEqual(RideStatus.Requested, ride.Status);
-        Assert.AreEqual(1, ride.Version);
-        Assert.AreEqual(1.0m, ride.SurgeMultiplier);
-        Assert.IsNull(ride.DriverId);
+        ride.RiderId.Should().Be(riderId);
+        ride.RideType.Should().Be("solo");
+        ride.RegionId.Should().Be(1);
+        ride.Status.Should().Be(RideStatus.Requested);
+        ride.Version.Should().Be(1);
+        ride.SurgeMultiplier.Should().Be(1.0m);
+        ride.DriverId.Should().BeNull();
     }
 
     [TestMethod]
@@ -49,10 +50,10 @@ public class BuilderTests
             .Build();
 
         // Assert
-        Assert.AreEqual(10m, ride.BaseFare);
-        Assert.AreEqual(1.5m, ride.SurgeMultiplier);
-        Assert.AreEqual(15m, ride.FinalFare);
-        Assert.AreEqual("demand", ride.SurgeReason);
+        ride.BaseFare.Should().Be(10m);
+        ride.SurgeMultiplier.Should().Be(1.5m);
+        ride.FinalFare.Should().Be(15m);
+        ride.SurgeReason.Should().Be("demand");
     }
 
     [TestMethod]
@@ -67,8 +68,8 @@ public class BuilderTests
             .Build();
 
         // Assert
-        Assert.AreEqual(40.8, ride.DestLat);
-        Assert.AreEqual(-73.9, ride.DestLng);
+        ride.DestLat.Should().Be(40.8);
+        ride.DestLng.Should().Be(-73.9);
     }
 
     [TestMethod]
@@ -84,8 +85,8 @@ public class BuilderTests
             .Build();
 
         // Assert
-        Assert.AreEqual(RideStatus.PoolQueued, ride.Status);
-        Assert.AreEqual("pool", ride.RideType);
+        ride.Status.Should().Be(RideStatus.PoolQueued);
+        ride.RideType.Should().Be("pool");
     }
 
     [TestMethod]
@@ -144,10 +145,10 @@ public class BuilderTests
             .Build();
 
         // Assert
-        Assert.AreEqual(OrderStatus.Placed, order.Status);
-        Assert.AreEqual(2, order.Items.Count);
-        Assert.AreEqual(22.50m, order.TotalAmount); // 2*5 + 1*12.5
-        Assert.AreEqual(1, order.RegionId);
+        order.Status.Should().Be(OrderStatus.Placed);
+        order.Items.Count.Should().Be(2);
+        order.TotalAmount.Should().Be(22.50m); // 2*5 + 1*12.5
+        order.RegionId.Should().Be(1);
     }
 
     [TestMethod]
@@ -207,6 +208,6 @@ public class BuilderTests
             .Build();
 
         // Assert
-        Assert.AreEqual(27.00m, order.TotalAmount);
+        order.TotalAmount.Should().Be(27.00m);
     }
 }

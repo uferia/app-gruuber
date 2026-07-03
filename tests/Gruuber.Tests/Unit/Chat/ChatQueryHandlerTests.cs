@@ -2,10 +2,12 @@ using Gruuber.Chat.Application.Queries;
 using Gruuber.Chat.Domain;
 using Gruuber.Chat.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Chat;
 
+[TestClass]
 public class ChatQueryHandlerTests
 {
     private static ChatDbContext CreateInMemoryDb()
@@ -15,7 +17,7 @@ public class ChatQueryHandlerTests
         return new ChatDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task GetThreadsForUser_ReturnsOnlyThreadsUserIsParticipantIn()
     {
         await using var db = CreateInMemoryDb();
@@ -33,11 +35,11 @@ public class ChatQueryHandlerTests
         var handler = new ChatQueryHandler(db);
         var result = await handler.GetThreadsAsync(userId, contextId, CancellationToken.None);
 
-        Assert.Single(result);
-        Assert.Equal(thread1.ThreadId, result[0].ThreadId);
+        result.Should().ContainSingle();
+        result[0].ThreadId.Should().Be(thread1.ThreadId);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task GetMessages_Paginated_ReturnsOldestFirst()
     {
         await using var db = CreateInMemoryDb();
@@ -60,12 +62,12 @@ public class ChatQueryHandlerTests
         var handler = new ChatQueryHandler(db);
         var result = await handler.GetMessagesAsync(threadId, page: 1, limit: 5, CancellationToken.None);
 
-        Assert.Equal(5, result.Items.Count);
-        Assert.Equal("Message 0", result.Items[0].Body);
-        Assert.Equal(10, result.Total);
+        result.Items.Count.Should().Be(5);
+        result.Items[0].Body.Should().Be("Message 0");
+        result.Total.Should().Be(10);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task GetQuickReplies_ReturnsOnlyMatchingRoleAndLocale()
     {
         await using var db = CreateInMemoryDb();
@@ -79,7 +81,7 @@ public class ChatQueryHandlerTests
         var handler = new ChatQueryHandler(db);
         var result = await handler.GetQuickRepliesAsync("driver", "en", CancellationToken.None);
 
-        Assert.Single(result);
-        Assert.Equal("On my way", result[0].Body);
+        result.Should().ContainSingle();
+        result[0].Body.Should().Be("On my way");
     }
 }

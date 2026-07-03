@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+[TestClass]
 public class ChatHubTests
 {
     private static ChatDbContext CreateInMemoryDb()
@@ -16,7 +18,7 @@ public class ChatHubTests
         return new ChatDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task JoinThread_AddsCallerToGroup_AndMarksMessagesDelivered()
     {
         await using var db = CreateInMemoryDb();
@@ -47,10 +49,10 @@ public class ChatHubTests
         mockGroups.Verify(g => g.AddToGroupAsync("conn-1", $"chat:{threadId}", default), Times.Once);
 
         var updated = await db.Messages.Where(m => m.ThreadId == threadId).ToListAsync();
-        Assert.All(updated, m => Assert.Equal("delivered", m.DeliveryStatus));
+        updated.Should().OnlyContain(m => m.DeliveryStatus == "delivered");
     }
 
-    [Fact]
+    [TestMethod]
     public async Task JoinThread_ThreadNotFound_ThrowsHubException()
     {
         await using var db = CreateInMemoryDb();
@@ -67,10 +69,11 @@ public class ChatHubTests
             Context = mockContext.Object
         };
 
-        await Assert.ThrowsAsync<HubException>(() => hub.JoinThread(Guid.NewGuid()));
+        var act = () => hub.JoinThread(Guid.NewGuid());
+        await act.Should().ThrowAsync<HubException>();
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SendMessage_ToReadOnlyThread_ThrowsHubException()
     {
         await using var db = CreateInMemoryDb();
@@ -97,11 +100,11 @@ public class ChatHubTests
             Context = mockContext.Object
         };
 
-        await Assert.ThrowsAsync<HubException>(() =>
-            hub.SendMessage(threadId, "Hello?", isQuickReply: false));
+        var act = () => hub.SendMessage(threadId, "Hello?", isQuickReply: false);
+        await act.Should().ThrowAsync<HubException>();
     }
 
-    [Fact]
+    [TestMethod]
     public async Task SendMessage_ValidThread_PersistsMessageAndBroadcastsToGroup()
     {
         await using var db = CreateInMemoryDb();
@@ -139,8 +142,8 @@ public class ChatHubTests
         await hub.SendMessage(threadId, "On my way!", isQuickReply: false);
 
         var savedMsg = await db.Messages.SingleAsync(m => m.ThreadId == threadId);
-        Assert.Equal("On my way!", savedMsg.Body);
-        Assert.Equal(senderId, savedMsg.SenderId);
+        savedMsg.Body.Should().Be("On my way!");
+        savedMsg.SenderId.Should().Be(senderId);
 
         mockGroupClient.Verify(
             c => c.SendCoreAsync("MessageReceived", It.IsAny<object[]>(), default),

@@ -2,10 +2,12 @@ using Gruuber.Analytics.Application.Queries;
 using Gruuber.Analytics.Domain;
 using Gruuber.Analytics.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
+using FluentAssertions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Gruuber.Tests.Unit.Analytics;
 
+[TestClass]
 public class DashboardQueryTests
 {
     private static AnalyticsDbContext CreateInMemoryDb()
@@ -15,7 +17,7 @@ public class DashboardQueryTests
         return new AnalyticsDbContext(opts);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task DriverSummary_WeeklyPeriod_SumsSevenDailyRows()
     {
         await using var db = CreateInMemoryDb();
@@ -36,23 +38,23 @@ public class DashboardQueryTests
         var handler = new DriverDashboardQueryHandler(db);
         var result = await handler.GetSummaryAsync(driverId, "weekly", CancellationToken.None);
 
-        Assert.Equal(35, result.TripsCompleted);
-        Assert.Equal(350.00m, result.GrossEarnings);
+        result.TripsCompleted.Should().Be(35);
+        result.GrossEarnings.Should().Be(350.00m);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task DriverSummary_NoPeriodData_ReturnsZeroValuedSummary()
     {
         await using var db = CreateInMemoryDb();
         var handler = new DriverDashboardQueryHandler(db);
         var result = await handler.GetSummaryAsync(Guid.NewGuid(), "daily", CancellationToken.None);
 
-        Assert.Equal(0, result.TripsCompleted);
-        Assert.Equal(0m, result.GrossEarnings);
+        result.TripsCompleted.Should().Be(0);
+        result.GrossEarnings.Should().Be(0m);
         // Must return 200 with zeros, not throw
     }
 
-    [Fact]
+    [TestMethod]
     public async Task RestaurantMenuPerformance_SortedByUnitsSoldDesc()
     {
         await using var db = CreateInMemoryDb();
@@ -68,7 +70,7 @@ public class DashboardQueryTests
         var handler = new RestaurantDashboardQueryHandler(db);
         var result = await handler.GetMenuPerformanceAsync(restaurantId, "daily", CancellationToken.None);
 
-        Assert.Equal("Fries", result.Items[0].ItemName);  // highest units_sold first
-        Assert.Equal("Burger", result.Items[1].ItemName);
+        result.Items[0].ItemName.Should().Be("Fries");  // highest units_sold first
+        result.Items[1].ItemName.Should().Be("Burger");
     }
 }
