@@ -48,6 +48,29 @@ public class RegisterRestaurantHandlerTests
         result.ErrorCode.Should().Be("RESTAURANT_ALREADY_EXISTS");
     }
 
+    private sealed class ThrowingSaveDbContext : RestaurantsDbContext
+    {
+        public ThrowingSaveDbContext(DbContextOptions<RestaurantsDbContext> options) : base(options) { }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+            => throw new DbUpdateException("unique constraint violation");
+    }
+
+    [TestMethod]
+    public async Task Register_UniqueIndexRace_Returns409()
+    {
+        var opts = new DbContextOptionsBuilder<RestaurantsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        await using var db = new ThrowingSaveDbContext(opts);
+        var handler = new RegisterRestaurantHandler(db);
+
+        var result = await handler.HandleAsync(NewCommand());
+
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.ErrorCode.Should().Be("RESTAURANT_ALREADY_EXISTS");
+    }
+
     [TestMethod]
     public async Task GetMine_ReturnsOwnRestaurant()
     {

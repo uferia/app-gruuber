@@ -27,7 +27,16 @@ public class RegisterRestaurantHandler
             command.OwnerUserId, command.Name, command.Description, command.CuisineType,
             command.Address, command.Lat, command.Lng, command.RegionId);
         _db.Restaurants.Add(restaurant);
-        await _db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return ApplicationResult<RegisterRestaurantResponse>.Failure(
+                "RESTAURANT_ALREADY_EXISTS", "This account already has a registered restaurant.", 409);
+        }
 
         return ApplicationResult<RegisterRestaurantResponse>.Success(
             new RegisterRestaurantResponse(restaurant.Id, restaurant.ApprovalStatus.ToString()), 201);
