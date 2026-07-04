@@ -14,15 +14,21 @@ public class RestaurantsController : ControllerBase
 {
     private readonly RegisterRestaurantHandler _registerHandler;
     private readonly RestaurantQueryHandler _queryHandler;
+    private readonly UpdateRestaurantHandler _updateHandler;
+    private readonly SetRestaurantOpenHandler _setOpenHandler;
     private readonly ICurrentUserContext _currentUser;
 
     public RestaurantsController(
         RegisterRestaurantHandler registerHandler,
         RestaurantQueryHandler queryHandler,
+        UpdateRestaurantHandler updateHandler,
+        SetRestaurantOpenHandler setOpenHandler,
         ICurrentUserContext currentUser)
     {
         _registerHandler = registerHandler;
         _queryHandler = queryHandler;
+        _updateHandler = updateHandler;
+        _setOpenHandler = setOpenHandler;
         _currentUser = currentUser;
     }
 
@@ -44,6 +50,26 @@ public class RestaurantsController : ControllerBase
         var result = await _queryHandler.GetMineAsync(_currentUser.UserId, cancellationToken);
         return result.ToHttpResult(this);
     }
+
+    [HttpPatch("{id:guid}")]
+    [Authorize(Policy = "restaurant")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateRestaurantRequest request, CancellationToken cancellationToken)
+    {
+        var cmd = new UpdateRestaurantCommand(
+            id, _currentUser.UserId, request.ExpectedVersion, request.Name, request.Description ?? string.Empty,
+            request.CuisineType, request.Address, request.Lat, request.Lng);
+        var result = await _updateHandler.HandleAsync(cmd, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpPatch("{id:guid}/open")]
+    [Authorize(Policy = "restaurant")]
+    public async Task<IActionResult> SetOpen(Guid id, [FromBody] SetOpenRequest request, CancellationToken cancellationToken)
+    {
+        var cmd = new SetRestaurantOpenCommand(id, _currentUser.UserId, request.ExpectedVersion, request.IsOpen);
+        var result = await _setOpenHandler.HandleAsync(cmd, cancellationToken);
+        return result.ToHttpResult(this);
+    }
 }
 
 public record RegisterRestaurantRequest(
@@ -53,3 +79,14 @@ public record RegisterRestaurantRequest(
     [Required][StringLength(500, MinimumLength = 1)] string Address,
     [Range(-90, 90)] double Lat,
     [Range(-180, 180)] double Lng);
+
+public record UpdateRestaurantRequest(
+    long ExpectedVersion,
+    [Required][StringLength(200, MinimumLength = 1)] string Name,
+    [StringLength(2000)] string? Description,
+    [Required][StringLength(100, MinimumLength = 1)] string CuisineType,
+    [Required][StringLength(500, MinimumLength = 1)] string Address,
+    [Range(-90, 90)] double Lat,
+    [Range(-180, 180)] double Lng);
+
+public record SetOpenRequest(long ExpectedVersion, bool IsOpen);
