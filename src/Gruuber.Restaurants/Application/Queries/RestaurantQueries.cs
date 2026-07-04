@@ -24,3 +24,39 @@ public record AdminRestaurantListItem(
     string ApprovalStatus,
     DateTime CreatedAt,
     long Version);
+
+public record DiscoverRestaurantsQuery(
+    int RegionId,
+    double? Lat,
+    double? Lng,
+    string? Search,
+    bool OpenNow,
+    int Page,
+    int PageSize);
+
+public record RestaurantListItem(
+    Guid Id,
+    string Name,
+    string CuisineType,
+    string Address,
+    bool IsOpen,
+    double? DistanceKm);
+
+public record PublicRestaurantResponse(
+    Guid Id,
+    string Name,
+    string Description,
+    string CuisineType,
+    string Address,
+    double Lat,
+    double Lng,
+    bool IsOpen);
+
+public record PublicMenuItem(
+    Guid Id,
+    string Name,
+    string Description,
+    string Category,
+    decimal Price,
+    string Currency,
+    bool IsAvailable);

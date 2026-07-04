@@ -60,6 +60,34 @@ public class RestaurantsController : ControllerBase
         return result.ToHttpResult(this);
     }
 
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> Discover(
+        [FromQuery] double? lat, [FromQuery] double? lng, [FromQuery] string? search,
+        [FromQuery] bool openNow = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new DiscoverRestaurantsQuery(_currentUser.RegionId, lat, lng, search, openNow, page, pageSize);
+        var result = await _queryHandler.DiscoverAsync(query, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpGet("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _queryHandler.GetPublicAsync(id, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpGet("{id:guid}/menu")]
+    [Authorize]
+    public async Task<IActionResult> GetMenu(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _queryHandler.GetMenuAsync(id, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = "restaurant")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateRestaurantRequest request, CancellationToken cancellationToken)
