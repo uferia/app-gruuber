@@ -22,6 +22,8 @@ public static class RestaurantsModule
         services.AddScoped<AddMenuItemHandler>();
         services.AddScoped<UpdateMenuItemHandler>();
         services.AddScoped<DeleteMenuItemHandler>();
+        services.AddScoped<ApproveRestaurantHandler>();
+        services.AddScoped<RejectRestaurantHandler>();
 
         return services;
     }

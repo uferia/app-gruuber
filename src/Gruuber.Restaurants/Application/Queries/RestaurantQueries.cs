@@ -13,3 +13,14 @@ public record RestaurantDetailResponse(
     bool IsOpen,
     int RegionId,
     long Version);
+
+public record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
+
+public record AdminRestaurantListItem(
+    Guid Id,
+    string Name,
+    string CuisineType,
+    int RegionId,
+    string ApprovalStatus,
+    DateTime CreatedAt,
+    long Version);

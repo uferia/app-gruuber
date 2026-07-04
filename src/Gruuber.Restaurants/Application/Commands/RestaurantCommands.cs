@@ -63,3 +63,11 @@ public record MenuItemResponse(
     long Version);
 
 public record DeleteMenuItemResponse(Guid MenuItemId);
+
+public record ApproveRestaurantCommand(Guid RestaurantId, long ExpectedVersion);
+
+public record ApproveRestaurantResponse(Guid RestaurantId, string ApprovalStatus, DateTime ApprovedAt);
+
+public record RejectRestaurantCommand(Guid RestaurantId, long ExpectedVersion, string Reason);
+
+public record RejectRestaurantResponse(Guid RestaurantId, string ApprovalStatus, string Reason);
