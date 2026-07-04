@@ -1,3 +1,5 @@
+using Gruuber.Restaurants.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,6 +9,10 @@ public static class RestaurantsModule
 {
     public static IServiceCollection AddRestaurantsModule(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddDbContext<RestaurantsDbContext>(options =>
+            options.UseNpgsql(configuration.GetConnectionString("RestaurantsDb")
+                ?? configuration.GetConnectionString("Default")));
+
         return services;
     }
 }
