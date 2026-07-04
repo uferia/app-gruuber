@@ -1,6 +1,7 @@
 using Gruuber.Restaurants.Application.Commands;
 using Gruuber.Restaurants.Application.Queries;
 using Gruuber.Restaurants.Infrastructure;
+using Gruuber.SharedKernel.Catalog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,7 @@ public static class RestaurantsModule
         services.AddScoped<DeleteMenuItemHandler>();
         services.AddScoped<ApproveRestaurantHandler>();
         services.AddScoped<RejectRestaurantHandler>();
+        services.AddScoped<IRestaurantCatalogReader, RestaurantCatalogReader>();
 
         return services;
     }
