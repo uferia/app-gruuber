@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Gruuber.Tracking\Gruuber.Tracking.csproj" />
     <ProjectReference Include="..\Gruuber.Analytics\Gruuber.Analytics.csproj" />
     <ProjectReference Include="..\Gruuber.Chat\Gruuber.Chat.csproj" />
+    <ProjectReference Include="..\Gruuber.Restaurants\Gruuber.Restaurants.csproj" />
   </ItemGroup>
 
   <ItemGroup>

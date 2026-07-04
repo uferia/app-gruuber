@@ -5,6 +5,7 @@ using Gruuber.SharedKernel.Pricing;
 using Gruuber.Api.Infrastructure.Kafka;using Gruuber.Auth;
 using Gruuber.Chat;
 using Gruuber.Chat.Hubs;
+using Gruuber.Restaurants;
 using Gruuber.Orders;
 using Gruuber.Payments;
 using Gruuber.Rides;
@@ -45,6 +46,7 @@ builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddTrackingModule(builder.Configuration);
 builder.Services.AddAnalyticsModule(builder.Configuration);
 builder.Services.AddChatModule(builder.Configuration);
+builder.Services.AddRestaurantsModule(builder.Configuration);
 
 // SignalR broadcaster (bridges Tracking module to SignalR hub)
 builder.Services.AddScoped<ILocationBroadcaster, SignalRLocationBroadcaster>();

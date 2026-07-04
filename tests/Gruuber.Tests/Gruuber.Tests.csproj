@@ -26,5 +26,6 @@
     <ProjectReference Include="..\..\src\Gruuber.Api\Gruuber.Api.csproj" />
     <ProjectReference Include="..\..\src\Gruuber.Analytics\Gruuber.Analytics.csproj" />
     <ProjectReference Include="..\..\src\Gruuber.Chat\Gruuber.Chat.csproj" />
+    <ProjectReference Include="..\..\src\Gruuber.Restaurants\Gruuber.Restaurants.csproj" />
   </ItemGroup>
 </Project>
