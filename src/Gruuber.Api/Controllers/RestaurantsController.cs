@@ -16,6 +16,9 @@ public class RestaurantsController : ControllerBase
     private readonly RestaurantQueryHandler _queryHandler;
     private readonly UpdateRestaurantHandler _updateHandler;
     private readonly SetRestaurantOpenHandler _setOpenHandler;
+    private readonly AddMenuItemHandler _addMenuItemHandler;
+    private readonly UpdateMenuItemHandler _updateMenuItemHandler;
+    private readonly DeleteMenuItemHandler _deleteMenuItemHandler;
     private readonly ICurrentUserContext _currentUser;
 
     public RestaurantsController(
@@ -23,12 +26,18 @@ public class RestaurantsController : ControllerBase
         RestaurantQueryHandler queryHandler,
         UpdateRestaurantHandler updateHandler,
         SetRestaurantOpenHandler setOpenHandler,
+        AddMenuItemHandler addMenuItemHandler,
+        UpdateMenuItemHandler updateMenuItemHandler,
+        DeleteMenuItemHandler deleteMenuItemHandler,
         ICurrentUserContext currentUser)
     {
         _registerHandler = registerHandler;
         _queryHandler = queryHandler;
         _updateHandler = updateHandler;
         _setOpenHandler = setOpenHandler;
+        _addMenuItemHandler = addMenuItemHandler;
+        _updateMenuItemHandler = updateMenuItemHandler;
+        _deleteMenuItemHandler = deleteMenuItemHandler;
         _currentUser = currentUser;
     }
 
@@ -70,6 +79,37 @@ public class RestaurantsController : ControllerBase
         var result = await _setOpenHandler.HandleAsync(cmd, cancellationToken);
         return result.ToHttpResult(this);
     }
+
+    [HttpPost("{id:guid}/menu-items")]
+    [Authorize(Policy = "restaurant")]
+    public async Task<IActionResult> AddMenuItem(Guid id, [FromBody] AddMenuItemRequest request, CancellationToken cancellationToken)
+    {
+        var cmd = new AddMenuItemCommand(
+            id, _currentUser.UserId, request.Name, request.Description ?? string.Empty,
+            request.Category ?? string.Empty, request.Price, request.Currency ?? "USD");
+        var result = await _addMenuItemHandler.HandleAsync(cmd, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpPatch("{id:guid}/menu-items/{itemId:guid}")]
+    [Authorize(Policy = "restaurant")]
+    public async Task<IActionResult> UpdateMenuItem(Guid id, Guid itemId, [FromBody] UpdateMenuItemRequest request, CancellationToken cancellationToken)
+    {
+        var cmd = new UpdateMenuItemCommand(
+            id, itemId, _currentUser.UserId, request.ExpectedVersion, request.Name,
+            request.Description ?? string.Empty, request.Category ?? string.Empty, request.Price, request.IsAvailable);
+        var result = await _updateMenuItemHandler.HandleAsync(cmd, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpDelete("{id:guid}/menu-items/{itemId:guid}")]
+    [Authorize(Policy = "restaurant")]
+    public async Task<IActionResult> DeleteMenuItem(Guid id, Guid itemId, CancellationToken cancellationToken)
+    {
+        var result = await _deleteMenuItemHandler.HandleAsync(
+            new DeleteMenuItemCommand(id, itemId, _currentUser.UserId), cancellationToken);
+        return result.ToHttpResult(this);
+    }
 }
 
 public record RegisterRestaurantRequest(
@@ -90,3 +130,18 @@ public record UpdateRestaurantRequest(
     [Range(-180, 180)] double Lng);
 
 public record SetOpenRequest(long ExpectedVersion, bool IsOpen);
+
+public record AddMenuItemRequest(
+    [Required][StringLength(200, MinimumLength = 1)] string Name,
+    [StringLength(1000)] string? Description,
+    [StringLength(100)] string? Category,
+    [Range(0.01, 1000000)] decimal Price,
+    [StringLength(3, MinimumLength = 3)] string? Currency);
+
+public record UpdateMenuItemRequest(
+    long ExpectedVersion,
+    [Required][StringLength(200, MinimumLength = 1)] string Name,
+    [StringLength(1000)] string? Description,
+    [StringLength(100)] string? Category,
+    [Range(0.01, 1000000)] decimal Price,
+    bool IsAvailable);
