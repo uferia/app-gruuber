@@ -186,4 +186,36 @@ public class CreateOrderHandlerTests
         order.CancellationReason.Should().Be(OrderCancellationReason.PaymentFailed);
         order.CancelledByRole.Should().Be("system");
     }
+
+    [TestMethod]
+    public async Task Create_RegionMismatch_Returns400()
+    {
+        await using var db = CreateInMemoryDb();
+        var handler = Handler(db, CatalogWith(OpenRestaurant(regionId: 2),
+            new CatalogMenuItem(ItemA, RestaurantId, "Pork BBQ", 120m, "PHP", true)));
+
+        var result = await handler.HandleAsync(Command(new OrderItemRequest(ItemA, 1)));
+
+        result.StatusCode.Should().Be(400);
+        result.ErrorCode.Should().Be("REGION_MISMATCH");
+    }
+
+    [TestMethod]
+    public async Task Create_PaymentInitiationFails_WritesOrderCancelledOutboxEvent()
+    {
+        await using var db = CreateInMemoryDb();
+        var catalog = CatalogWith(OpenRestaurant(),
+            new CatalogMenuItem(ItemA, RestaurantId, "Pork BBQ", 120m, "PHP", true));
+        var payments = new Mock<IOrderPaymentInitiator>();
+        payments.Setup(p => p.InitiateForOrderAsync(It.IsAny<OrderPaymentRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("payments store down"));
+        var handler = Handler(db, catalog, payments);
+
+        await handler.HandleAsync(Command(new OrderItemRequest(ItemA, 1)));
+
+        var events = await db.Set<OrderOutboxEntry>().ToListAsync();
+        events.Should().HaveCount(2);
+        var names = events.Select(e => JsonDocument.Parse(e.Payload).RootElement.GetProperty("EventName").GetString()).ToList();
+        names.Should().BeEquivalentTo(new[] { "order_placed", "order_cancelled" });
+    }
 }
