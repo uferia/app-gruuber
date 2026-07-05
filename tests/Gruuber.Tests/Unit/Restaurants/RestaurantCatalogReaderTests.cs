@@ -15,10 +15,11 @@ public class RestaurantCatalogReaderTests
     }
 
     [TestMethod]
-    public async Task GetRestaurant_ReturnsStatusOpenAndLocation()
+    public async Task GetRestaurant_Approved_MapsOwnerStatusOpenAndLocation()
     {
         await using var db = CreateInMemoryDb();
-        var restaurant = Restaurant.Create(Guid.NewGuid(), "Kanto Grill", "d", "Filipino", "a", 14.5, 120.9, 1);
+        var ownerId = Guid.NewGuid();
+        var restaurant = Restaurant.Create(ownerId, "Kanto Grill", "d", "Filipino", "a", 14.5, 120.9, 1);
         restaurant.Approve();
         restaurant.SetOpen(true);
         db.Restaurants.Add(restaurant);
@@ -28,10 +29,26 @@ public class RestaurantCatalogReaderTests
         var result = await reader.GetRestaurantAsync(restaurant.Id);
 
         result.Should().NotBeNull();
-        result!.ApprovalStatus.Should().Be("Approved");
+        result!.OwnerUserId.Should().Be(ownerId);
+        result.IsApproved.Should().BeTrue();
         result.IsOpen.Should().BeTrue();
         result.Lat.Should().Be(14.5);
+        result.Lng.Should().Be(120.9);
         result.RegionId.Should().Be(1);
+    }
+
+    [TestMethod]
+    public async Task GetRestaurant_Pending_IsApprovedFalse()
+    {
+        await using var db = CreateInMemoryDb();
+        var restaurant = Restaurant.Create(Guid.NewGuid(), "Pending Place", "d", "Filipino", "a", 14.5, 120.9, 1);
+        db.Restaurants.Add(restaurant);
+        await db.SaveChangesAsync();
+        var reader = new RestaurantCatalogReader(db);
+
+        var result = await reader.GetRestaurantAsync(restaurant.Id);
+
+        result!.IsApproved.Should().BeFalse();
     }
 
     [TestMethod]

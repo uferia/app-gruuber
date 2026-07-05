@@ -1,4 +1,5 @@
 using Gruuber.SharedKernel.Catalog;
+using Gruuber.Restaurants.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Gruuber.Restaurants.Infrastructure;
@@ -17,7 +18,9 @@ public class RestaurantCatalogReader : IRestaurantCatalogReader
         return await _db.Restaurants.AsNoTracking()
             .Where(r => r.Id == restaurantId)
             .Select(r => new CatalogRestaurant(
-                r.Id, r.Name, r.ApprovalStatus.ToString(), r.IsOpen, r.RegionId, r.Lat, r.Lng))
+                r.Id, r.OwnerUserId, r.Name,
+                r.ApprovalStatus == RestaurantApprovalStatus.Approved,
+                r.IsOpen, r.RegionId, r.Lat, r.Lng))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
