@@ -1,4 +1,5 @@
 using Gruuber.Orders.Domain;
+using Gruuber.SharedKernel.Payments;
 using Microsoft.EntityFrameworkCore;
 
 namespace Gruuber.Orders.Infrastructure;
@@ -25,6 +26,12 @@ public class OrdersDbContext : DbContext
             e.Property(x => x.SurgeMultiplier).HasColumnType("numeric(6,2)").HasDefaultValue(1.0m);
             e.Property(x => x.FinalFare).HasColumnType("numeric(10,2)");
             e.Property(x => x.SurgeReason).HasMaxLength(32);
+            e.Property(x => x.DeliveryFee).HasColumnType("numeric(10,2)").HasDefaultValue(0m);
+            e.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(32).HasDefaultValue(PaymentMethod.CardMock);
+            e.Property(x => x.CancellationReason).HasConversion<string>().HasMaxLength(64);
+            e.Property(x => x.CancellationNote).HasMaxLength(500);
+            e.Property(x => x.CancelledByRole).HasMaxLength(32);
+            e.HasIndex(x => new { x.RestaurantId, x.Status });
         });
 
         modelBuilder.Entity<OrderItem>(e =>

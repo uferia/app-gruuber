@@ -12,7 +12,7 @@ public sealed record OrderSnapshot : ISnapshot<Guid>
     public DateTime CapturedAt { get; init; } = DateTime.UtcNow;
     public Guid RiderId { get; init; }
     public Guid RestaurantId { get; init; }
-    public Guid RideId { get; init; }
+    public Guid? RideId { get; init; }
     public Guid? DriverId { get; init; }
     public string Status { get; init; } = string.Empty;
     public decimal TotalAmount { get; init; }
