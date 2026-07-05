@@ -5,6 +5,7 @@ using Gruuber.Restaurants.Domain;
 using Gruuber.Restaurants.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Npgsql;
 
 [TestClass]
 public class RegisterRestaurantHandlerTests
@@ -50,18 +51,27 @@ public class RegisterRestaurantHandlerTests
 
     private sealed class ThrowingSaveDbContext : RestaurantsDbContext
     {
-        public ThrowingSaveDbContext(DbContextOptions<RestaurantsDbContext> options) : base(options) { }
+        private readonly Exception _toThrow;
+
+        public ThrowingSaveDbContext(DbContextOptions<RestaurantsDbContext> options, Exception toThrow) : base(options)
+        {
+            _toThrow = toThrow;
+        }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            => throw new DbUpdateException("unique constraint violation");
+            => throw _toThrow;
     }
+
+    private static PostgresException UniqueViolation() =>
+        new("duplicate key value violates unique constraint", "ERROR", "ERROR", "23505");
 
     [TestMethod]
     public async Task Register_UniqueIndexRace_Returns409()
     {
         var opts = new DbContextOptionsBuilder<RestaurantsDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        await using var db = new ThrowingSaveDbContext(opts);
+        var dbUpdateException = new DbUpdateException("unique constraint violation", UniqueViolation());
+        await using var db = new ThrowingSaveDbContext(opts, dbUpdateException);
         var handler = new RegisterRestaurantHandler(db);
 
         var result = await handler.HandleAsync(NewCommand());
@@ -69,6 +79,20 @@ public class RegisterRestaurantHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.StatusCode.Should().Be(409);
         result.ErrorCode.Should().Be("RESTAURANT_ALREADY_EXISTS");
+    }
+
+    [TestMethod]
+    public async Task Register_NonUniqueViolationDbUpdateException_Propagates()
+    {
+        var opts = new DbContextOptionsBuilder<RestaurantsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        var dbUpdateException = new DbUpdateException("transient failure");
+        await using var db = new ThrowingSaveDbContext(opts, dbUpdateException);
+        var handler = new RegisterRestaurantHandler(db);
+
+        Func<Task> act = async () => await handler.HandleAsync(NewCommand());
+
+        await act.Should().ThrowAsync<DbUpdateException>();
     }
 
     [TestMethod]

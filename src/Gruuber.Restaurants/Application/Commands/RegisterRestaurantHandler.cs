@@ -2,6 +2,7 @@ using Gruuber.Restaurants.Domain;
 using Gruuber.Restaurants.Infrastructure;
 using Gruuber.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Gruuber.Restaurants.Application.Commands;
 
@@ -32,7 +33,7 @@ public class RegisterRestaurantHandler
         {
             await _db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
             return ApplicationResult<RegisterRestaurantResponse>.Failure(
                 "RESTAURANT_ALREADY_EXISTS", "This account already has a registered restaurant.", 409);

@@ -78,6 +78,33 @@ public class RestaurantAdminHandlerTests
     }
 
     [TestMethod]
+    public async Task Reject_UnknownRestaurant_Returns404()
+    {
+        await using var db = CreateInMemoryDb();
+        var handler = new RejectRestaurantHandler(db);
+
+        var result = await handler.HandleAsync(new RejectRestaurantCommand(Guid.NewGuid(), 1, "Incomplete documents"));
+
+        result.StatusCode.Should().Be(404);
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [TestMethod]
+    public async Task Reject_WithStaleVersion_Returns409()
+    {
+        await using var db = CreateInMemoryDb();
+        var restaurant = NewRestaurant();
+        db.Restaurants.Add(restaurant);
+        await db.SaveChangesAsync();
+        var handler = new RejectRestaurantHandler(db);
+
+        var result = await handler.HandleAsync(new RejectRestaurantCommand(restaurant.Id, 99, "Incomplete documents"));
+
+        result.StatusCode.Should().Be(409);
+        result.ErrorCode.Should().Be("RESOURCE_CONFLICTED");
+    }
+
+    [TestMethod]
     public async Task AdminList_FiltersByStatus()
     {
         await using var db = CreateInMemoryDb();

@@ -108,6 +108,28 @@ public class RestaurantQueryHandlerTests
     }
 
     [TestMethod]
+    public async Task Discover_ExcludesNonApprovedStatuses()
+    {
+        await using var db = CreateInMemoryDb();
+        var pending = Restaurant.Create(Guid.NewGuid(), "Pending Place", "d", "Filipino", "a", 14.5, 120.9, 1);
+        var rejected = Restaurant.Create(Guid.NewGuid(), "Rejected Place", "d", "Filipino", "a", 14.5, 120.9, 1);
+        rejected.Reject("Incomplete documents");
+        db.Restaurants.AddRange(
+            Approved("Approved Place", "Filipino", 14.5, 120.9),
+            pending,
+            rejected);
+        await db.SaveChangesAsync();
+        var handler = new RestaurantQueryHandler(db);
+
+        var result = await handler.DiscoverAsync(new DiscoverRestaurantsQuery(1, null, null, null, false, 1, 20));
+        var rejectedDetail = await handler.GetPublicAsync(rejected.Id);
+
+        result.Data!.TotalCount.Should().Be(1);
+        result.Data.Items.Single().Name.Should().Be("Approved Place");
+        rejectedDetail.StatusCode.Should().Be(404);
+    }
+
+    [TestMethod]
     public async Task GetPublic_PendingRestaurant_Returns404()
     {
         await using var db = CreateInMemoryDb();
