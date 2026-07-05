@@ -229,6 +229,23 @@ public class TransitionOrderHandlerTests
     }
 
     [TestMethod]
+    public async Task Accept_ByActorFromDifferentRegion_UsesOrderRegionForOutboxEvent()
+    {
+        await using var db = CreateInMemoryDb();
+        var order = await SeedOrder(db);
+        var handler = Handler(db);
+
+        var command = new TransitionOrderCommand(order.Id, "Accepted", 1, 9, OwnerId, "restaurant");
+        var result = await handler.HandleAsync(command);
+
+        result.IsSuccess.Should().BeTrue();
+        var outbox = await db.Set<OrderOutboxEntry>().SingleAsync();
+        outbox.EventType.Should().Be("order-events-1");
+        using var doc = JsonDocument.Parse(outbox.Payload);
+        doc.RootElement.GetProperty("RegionId").GetInt32().Should().Be(1);
+    }
+
+    [TestMethod]
     public async Task Delivered_EmitsOrderDeliveredWithRevenue()
     {
         await using var db = CreateInMemoryDb();

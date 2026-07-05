@@ -41,6 +41,7 @@ public class OrderPaymentInitiatorTests
         payment.Method.Should().Be(PaymentMethod.CashOnDelivery);
         payment.Amount.Should().Be(392.50m);
         payment.Status.Should().Be(PaymentStatus.Initiated);
+        payment.RegionId.Should().Be(1);
     }
 
     [TestMethod]
@@ -64,12 +65,13 @@ public class OrderPaymentInitiatorTests
     [TestMethod]
     public void CreateForOrder_DefaultsInitiatedVersion1()
     {
-        var payment = Payment.CreateForOrder(Guid.NewGuid(), Guid.NewGuid(), 50m, "USD", PaymentMethod.CardMock);
+        var payment = Payment.CreateForOrder(Guid.NewGuid(), Guid.NewGuid(), 50m, "USD", PaymentMethod.CardMock, 3);
 
         payment.Status.Should().Be(PaymentStatus.Initiated);
         payment.Version.Should().Be(1);
         payment.RideId.Should().BeNull();
         payment.OrderId.Should().NotBeNull();
+        payment.RegionId.Should().Be(3);
     }
 
     [TestMethod]

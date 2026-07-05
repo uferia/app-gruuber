@@ -37,7 +37,7 @@ public class OrdersController : ControllerBase
     [Authorize(Policy = "rider")]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, ignoreCase: true, out var method))
+        if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, ignoreCase: true, out var method) || !Enum.IsDefined(method))
             return BadRequest(new { ErrorCode = "INVALID_PAYMENT_METHOD", ErrorMessage = "PaymentMethod must be CardMock or CashOnDelivery." });
 
         var cmd = new CreateOrderCommand(

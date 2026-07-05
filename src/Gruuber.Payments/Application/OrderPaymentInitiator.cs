@@ -21,7 +21,7 @@ public class OrderPaymentInitiator : IOrderPaymentInitiator
         OrderPaymentRequest request,
         CancellationToken cancellationToken = default)
     {
-        var payment = Payment.CreateForOrder(request.OrderId, request.RiderId, request.Amount, request.Currency, request.Method);
+        var payment = Payment.CreateForOrder(request.OrderId, request.RiderId, request.Amount, request.Currency, request.Method, request.RegionId);
 
         var outbox = new PaymentOutboxEntry
         {

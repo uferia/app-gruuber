@@ -34,6 +34,7 @@ public class GetRestaurantOrdersHandler
         var total = await dbQuery.CountAsync(cancellationToken);
         var items = await dbQuery
             .OrderByDescending(o => o.CreatedAt)
+            .ThenByDescending(o => o.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(o => new RestaurantOrderSummary(

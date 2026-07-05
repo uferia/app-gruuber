@@ -59,7 +59,7 @@ public class TransitionOrderHandler
             if (string.IsNullOrWhiteSpace(command.Reason))
                 return ApplicationResult<TransitionOrderResponse>.Failure(
                     "REASON_REQUIRED", "A cancellation reason is required.", 400);
-            if (!Enum.TryParse<OrderCancellationReason>(command.Reason, ignoreCase: true, out var parsed))
+            if (!Enum.TryParse<OrderCancellationReason>(command.Reason, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
                 return ApplicationResult<TransitionOrderResponse>.Failure(
                     "INVALID_REASON", $"Unknown cancellation reason '{command.Reason}'.", 400);
             if (!CancellationPolicy.IsAllowed(parsed, command.ActorRole))
@@ -80,14 +80,14 @@ public class TransitionOrderHandler
 
         _db.Set<OrderOutboxEntry>().Add(new OrderOutboxEntry
         {
-            EventType = $"order-events-{command.RegionId}",
+            EventType = $"order-events-{order.RegionId}",
             Payload = JsonSerializer.Serialize(new
             {
                 EventName = $"order_{newStatus.ToString().ToLowerInvariant()}",
                 OrderId = order.Id,
                 order.RestaurantId,
                 order.RiderId,
-                RegionId = command.RegionId,
+                RegionId = order.RegionId,
                 Revenue = revenue,
                 Reason = order.CancellationReason?.ToString(),
                 OccurredAt = DateTime.UtcNow
@@ -98,14 +98,14 @@ public class TransitionOrderHandler
         {
             _db.Set<OrderOutboxEntry>().Add(new OrderOutboxEntry
             {
-                EventType = $"order-events-{command.RegionId}",
+                EventType = $"order-events-{order.RegionId}",
                 Payload = JsonSerializer.Serialize(new
                 {
                     EventName = "payment_refund_requested",
                     OrderId = order.Id,
                     Amount = revenue,
                     Reason = order.CancellationReason?.ToString(),
-                    RegionId = command.RegionId,
+                    RegionId = order.RegionId,
                     OccurredAt = DateTime.UtcNow
                 })
             });
@@ -114,9 +114,7 @@ public class TransitionOrderHandler
         await _db.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "Order {OrderId} transitioned to {Status} by {ActorRole} {ActorUserId}",
-            order.Id, newStatus, command.ActorRole, command.ActorUserId);
+        _logger.LogInformation("Order {OrderId} in region {RegionId} transitioned to {Status} by {ActorRole} {ActorUserId}", order.Id, order.RegionId, newStatus, command.ActorRole, command.ActorUserId);
 
         return ApplicationResult<TransitionOrderResponse>.Success(
             new TransitionOrderResponse(order.Id, order.Status.ToString()));

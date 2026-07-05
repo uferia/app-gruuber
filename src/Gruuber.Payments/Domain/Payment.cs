@@ -32,7 +32,7 @@ public class Payment : EntityBase
         };
     }
 
-    public static Payment CreateForOrder(Guid orderId, Guid riderId, decimal amount, string currency, PaymentMethod method)
+    public static Payment CreateForOrder(Guid orderId, Guid riderId, decimal amount, string currency, PaymentMethod method, int regionId)
     {
         return new Payment
         {
@@ -42,6 +42,7 @@ public class Payment : EntityBase
             Amount = amount,
             Currency = currency,
             Method = method,
+            RegionId = regionId,
             Status = PaymentStatus.Initiated,
             CreatedAt = DateTime.UtcNow,
             Version = 1
