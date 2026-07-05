@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Gruuber.Api.Extensions;
+using Gruuber.Orders.Application.Queries;
 using Gruuber.Restaurants.Application.Commands;
 using Gruuber.Restaurants.Application.Queries;
 using Gruuber.SharedKernel.Infrastructure;
@@ -19,6 +20,7 @@ public class RestaurantsController : ControllerBase
     private readonly AddMenuItemHandler _addMenuItemHandler;
     private readonly UpdateMenuItemHandler _updateMenuItemHandler;
     private readonly DeleteMenuItemHandler _deleteMenuItemHandler;
+    private readonly GetRestaurantOrdersHandler _restaurantOrdersHandler;
     private readonly ICurrentUserContext _currentUser;
 
     public RestaurantsController(
@@ -29,6 +31,7 @@ public class RestaurantsController : ControllerBase
         AddMenuItemHandler addMenuItemHandler,
         UpdateMenuItemHandler updateMenuItemHandler,
         DeleteMenuItemHandler deleteMenuItemHandler,
+        GetRestaurantOrdersHandler restaurantOrdersHandler,
         ICurrentUserContext currentUser)
     {
         _registerHandler = registerHandler;
@@ -38,6 +41,7 @@ public class RestaurantsController : ControllerBase
         _addMenuItemHandler = addMenuItemHandler;
         _updateMenuItemHandler = updateMenuItemHandler;
         _deleteMenuItemHandler = deleteMenuItemHandler;
+        _restaurantOrdersHandler = restaurantOrdersHandler;
         _currentUser = currentUser;
     }
 
@@ -57,6 +61,21 @@ public class RestaurantsController : ControllerBase
     public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
     {
         var result = await _queryHandler.GetMineAsync(_currentUser.UserId, cancellationToken);
+        return result.ToHttpResult(this);
+    }
+
+    [HttpGet("mine/orders")]
+    [Authorize(Policy = "restaurant")]
+    public async Task<IActionResult> GetMineOrders(
+        [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var mine = await _queryHandler.GetMineAsync(_currentUser.UserId, cancellationToken);
+        if (!mine.IsSuccess)
+            return mine.ToHttpResult(this);
+
+        var result = await _restaurantOrdersHandler.HandleAsync(
+            new GetRestaurantOrdersQuery(mine.Data!.Id, status, page, pageSize), cancellationToken);
         return result.ToHttpResult(this);
     }
 

@@ -22,6 +22,7 @@ public static class OrdersModule
         services.AddScoped<TransitionOrderHandler>();
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<GetOrderItemsHandler>();
+        services.AddScoped<GetRestaurantOrdersHandler>();
 
         return services;
     }
