@@ -154,6 +154,11 @@ public class ChatEventProcessor
 
     private async Task HandleOrderAccepted(JsonElement root, CancellationToken ct)
     {
+        // Order acceptance precedes driver assignment (dispatch is a later phase);
+        // the order chat thread needs both parties, so skip driverless events.
+        if (!root.TryGetProperty("DriverId", out var drv) || drv.ValueKind != JsonValueKind.String)
+            return;
+
         var orderId = root.GetProperty("OrderId").GetGuid();
         var riderId = root.GetProperty("RiderId").GetGuid();
         var driverId = root.GetProperty("DriverId").GetGuid();

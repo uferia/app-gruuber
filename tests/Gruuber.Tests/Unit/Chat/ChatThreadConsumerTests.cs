@@ -91,6 +91,25 @@ public class ChatThreadConsumerTests
     }
 
     [TestMethod]
+    public async Task OrderAccepted_WithoutDriverId_CreatesNoThreads()
+    {
+        await using var db = CreateInMemoryDb();
+        var processor = new ChatEventProcessor(db, NullLogger<ChatEventProcessor>.Instance);
+
+        var payload = $@"{{
+            ""EventName"": ""order_accepted"",
+            ""OrderId"": ""{Guid.NewGuid()}"",
+            ""RiderId"": ""{Guid.NewGuid()}"",
+            ""RestaurantId"": ""{Guid.NewGuid()}"",
+            ""RegionId"": 1
+        }}";
+
+        await processor.ProcessAsync(payload, CancellationToken.None);
+
+        (await db.Threads.CountAsync()).Should().Be(0);
+    }
+
+    [TestMethod]
     public async Task ProcessRideMatched_IdempotentOnDuplicateEvent_ThreadCreatedOnlyOnce()
     {
         await using var db = CreateInMemoryDb();
