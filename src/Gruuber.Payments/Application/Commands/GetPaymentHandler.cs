@@ -21,6 +21,8 @@ public class GetPaymentHandler
             new PaymentDetailResponse(
                 payment.Id,
                 payment.RideId,
+                payment.OrderId,
+                payment.Method.ToString(),
                 payment.Status.ToString(),
                 payment.Amount,
                 payment.Currency,

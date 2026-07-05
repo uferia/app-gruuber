@@ -1,13 +1,16 @@
 using Gruuber.SharedKernel.Domain;
+using Gruuber.SharedKernel.Payments;
 
 namespace Gruuber.Payments.Domain;
 
 public class Payment : EntityBase
 {
-    public Guid RideId { get; private set; }
+    public Guid? RideId { get; private set; }
+    public Guid? OrderId { get; private set; }
     public Guid RiderId { get; private set; }
     public string Currency { get; private set; } = "USD";
     public PaymentStatus Status { get; private set; } = PaymentStatus.Initiated;
+    public PaymentMethod Method { get; private set; } = PaymentMethod.CardMock;
     public decimal Amount { get; private set; }
     public DateTime? ConfirmedAt { get; private set; }
     public int PollingAttempts { get; private set; }
@@ -23,6 +26,22 @@ public class Payment : EntityBase
             RiderId = riderId,
             Amount = amount,
             Currency = currency,
+            Status = PaymentStatus.Initiated,
+            CreatedAt = DateTime.UtcNow,
+            Version = 1
+        };
+    }
+
+    public static Payment CreateForOrder(Guid orderId, Guid riderId, decimal amount, string currency, PaymentMethod method)
+    {
+        return new Payment
+        {
+            Id = Guid.NewGuid(),
+            OrderId = orderId,
+            RiderId = riderId,
+            Amount = amount,
+            Currency = currency,
+            Method = method,
             Status = PaymentStatus.Initiated,
             CreatedAt = DateTime.UtcNow,
             Version = 1

@@ -1,6 +1,7 @@
 using Gruuber.Payments.Application;
 using Gruuber.Payments.Application.Commands;
 using Gruuber.Payments.Infrastructure;
+using Gruuber.SharedKernel.Payments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public static class PaymentsModule
         services.AddScoped<ConfirmPaymentHandler>();
         services.AddScoped<FailPaymentHandler>();
         services.AddScoped<GetPaymentHandler>();
+        services.AddScoped<IOrderPaymentInitiator, OrderPaymentInitiator>();
         services.AddHostedService<PaymentTimeoutWorker>();
 
         return services;

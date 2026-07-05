@@ -19,6 +19,8 @@ public class PaymentsDbContext : DbContext
             e.Property(x => x.Currency).HasMaxLength(8);
             e.Property(x => x.Amount).HasPrecision(18, 4);
             e.Property(x => x.Version).IsConcurrencyToken();
+            e.Property(x => x.Method).HasConversion<string>().HasMaxLength(32);
+            e.HasIndex(x => x.OrderId);
             e.HasIndex(x => new { x.RideId, x.Status });
         });
 

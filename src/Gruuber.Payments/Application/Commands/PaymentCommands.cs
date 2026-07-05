@@ -7,4 +7,4 @@ public record ConfirmPaymentCommand(Guid PaymentId, long ExpectedVersion, int Re
 public record FailPaymentCommand(Guid PaymentId, long ExpectedVersion, string Reason, int RegionId);
 
 public record GetPaymentQuery(Guid PaymentId);
-public record PaymentDetailResponse(Guid Id, Guid RideId, string Status, decimal Amount, string Currency, DateTime CreatedAt);
+public record PaymentDetailResponse(Guid Id, Guid? RideId, Guid? OrderId, string Method, string Status, decimal Amount, string Currency, DateTime CreatedAt);
