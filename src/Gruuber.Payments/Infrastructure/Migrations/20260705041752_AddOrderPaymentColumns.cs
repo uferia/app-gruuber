@@ -25,7 +25,7 @@ namespace Gruuber.Payments.Infrastructure.Migrations
                 type: "character varying(32)",
                 maxLength: 32,
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "CardMock");
 
             migrationBuilder.AddColumn<Guid>(
                 name: "OrderId",
