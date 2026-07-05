@@ -3,6 +3,7 @@ using Gruuber.Api.Extensions;
 using Gruuber.Orders.Application.Commands;
 using Gruuber.Orders.Application.Queries;
 using Gruuber.SharedKernel.Infrastructure;
+using Gruuber.SharedKernel.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,9 +37,13 @@ public class OrdersController : ControllerBase
     [Authorize(Policy = "rider")]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken cancellationToken)
     {
+        if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, ignoreCase: true, out var method))
+            return BadRequest(new { ErrorCode = "INVALID_PAYMENT_METHOD", ErrorMessage = "PaymentMethod must be CardMock or CashOnDelivery." });
+
         var cmd = new CreateOrderCommand(
-            _currentUser.UserId, request.RestaurantId, request.RideId, _currentUser.RegionId,
-            request.Items.Select(i => new OrderItemRequest(i.MenuItemId, i.Quantity, i.Price)).ToList());
+            _currentUser.UserId, request.RestaurantId, _currentUser.RegionId,
+            request.Items.Select(i => new OrderItemRequest(i.MenuItemId, i.Quantity)).ToList(),
+            request.DeliveryLat, request.DeliveryLng, method);
 
         var result = await _createHandler.HandleAsync(cmd, cancellationToken);
         return result.ToHttpResult(this);
@@ -48,7 +53,9 @@ public class OrdersController : ControllerBase
     [Authorize]
     public async Task<IActionResult> TransitionStatus(Guid id, [FromBody] TransitionOrderRequest request, CancellationToken cancellationToken)
     {
-        var cmd = new TransitionOrderCommand(id, request.NewStatus, request.ExpectedVersion, _currentUser.RegionId);
+        var cmd = new TransitionOrderCommand(
+            id, request.NewStatus, request.ExpectedVersion, _currentUser.RegionId,
+            _currentUser.UserId, _currentUser.Role, request.Reason, request.Note);
         var result = await _transitionHandler.HandleAsync(cmd, cancellationToken);
         return result.ToHttpResult(this);
     }
@@ -71,16 +78,16 @@ public class OrdersController : ControllerBase
 }
 
 public record CreateOrderRequest(
-    Guid RiderId,
     [Required] Guid RestaurantId,
-    [Required] Guid RideId,
-    int RegionId,
-    [Required][MinLength(1)] IList<OrderItemInput> Items);
+    [Required][MinLength(1)] IList<OrderItemInput> Items,
+    [Range(-90, 90)] double DeliveryLat,
+    [Range(-180, 180)] double DeliveryLng,
+    [Required] string PaymentMethod);
 public record OrderItemInput(
     [Required] Guid MenuItemId,
-    [Range(1, 1000)] int Quantity,
-    [Range(0.01, 100000.0)] decimal Price);
+    [Range(1, 100)] int Quantity);
 public record TransitionOrderRequest(
     [Required] string NewStatus,
     [Range(1, long.MaxValue)] long ExpectedVersion,
-    int RegionId);
+    string? Reason = null,
+    [StringLength(500)] string? Note = null);

@@ -15,6 +15,9 @@ public static class OrdersModule
             options.UseNpgsql(configuration.GetConnectionString("OrdersDb")
                 ?? configuration.GetConnectionString("Default")));
 
+        var deliveryFee = decimal.TryParse(configuration["Orders:DeliveryFee"], out var fee) ? fee : 2.50m;
+        services.AddSingleton(new Application.OrderPricingOptions(deliveryFee));
+
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<TransitionOrderHandler>();
         services.AddScoped<GetOrderHandler>();
